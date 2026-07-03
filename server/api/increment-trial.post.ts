@@ -9,7 +9,7 @@ const getCache = (): Map<string, number> => {
 export default defineEventHandler((event) => {
   const headers = getHeaders(event);
   const rawIp = headers["x-forwarded-for"] || headers["x-real-ip"] || event.node?.req?.socket?.remoteAddress || "127.0.0.1";
-  const ip = (typeof rawIp === "string" ? rawIp.split(",")[0] : String(rawIp)).trim();
+  const ip = (typeof rawIp === "string" ? (rawIp.split(",")[0] ?? "") : String(rawIp)).trim();
 
   const cache = getCache();
   const currentCount = cache.get(ip) || 0;
