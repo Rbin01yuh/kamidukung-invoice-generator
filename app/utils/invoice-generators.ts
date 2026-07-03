@@ -352,10 +352,10 @@ export async function generatePdf(data: InvoiceData): Promise<Blob> {
 
   // Signature
   const sigY = Math.max(ty + 60, bottomY + 140);
-  doc.setFont(pdfFont, "normal");
+  doc.setFont(pdfFont, "bold");
   doc.setFontSize(10);
   doc.setTextColor(60, 60, 60);
-  doc.text("Dengan Hormat,", pageW - margin - 100, sigY, { align: "center" });
+  doc.text(data.signerTitle || "Dengan Hormat,", pageW - margin - 100, sigY, { align: "center" });
   const sigW = data.signatureSize ?? 120;
   const sigH = Math.round(sigW * 0.5);
   if (data.signatureDataUrl) {
@@ -377,8 +377,6 @@ export async function generatePdf(data: InvoiceData): Promise<Blob> {
   doc.line(pageW - margin - 180, sigY + 80, pageW - margin - 20, sigY + 80);
   doc.setFont(pdfFont, "bold");
   doc.text(data.signerName, pageW - margin - 100, sigY + 94, { align: "center" });
-  doc.setFont(pdfFont, "normal");
-  doc.text(data.signerTitle, pageW - margin - 100, sigY + 108, { align: "center" });
 
   return doc.output("blob");
 }
@@ -697,13 +695,12 @@ export async function generateDocx(data: InvoiceData): Promise<Blob> {
           new Paragraph({ children: [new TextRun({ text: "" })] }),
           bottomTable,
           new Paragraph({ children: [new TextRun({ text: "" })] }),
-          new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "Dengan Hormat," })] }),
+          new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: data.signerTitle || "Dengan Hormat,", bold: true })] }),
           new Paragraph({ alignment: AlignmentType.RIGHT, children: sigRuns.length ? sigRuns : [new TextRun({ text: "" })] }),
           new Paragraph({
             alignment: AlignmentType.RIGHT,
             children: [new TextRun({ text: data.signerName, bold: true, underline: {} })],
           }),
-          new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: data.signerTitle, color: muted })] }),
         ],
       },
     ],

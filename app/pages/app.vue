@@ -1291,7 +1291,7 @@ const onSendEmail = async () => {
             <!-- Signatures Section -->
             <div class="flex justify-end pt-8">
               <div class="text-center w-48 space-y-1 mt-4">
-                <span class="text-slate-400 text-[9px] block">Dengan Hormat,</span>
+                <span class="text-slate-500 text-[9.5px] font-bold block leading-none truncate">{{ signerTitle }}</span>
                 
                 <!-- Signature Image Container -->
                 <div class="h-16 flex items-center justify-center relative">
@@ -1301,7 +1301,6 @@ const onSendEmail = async () => {
 
                 <div class="border-t border-slate-300 w-full pt-1.5">
                   <p class="font-extrabold text-slate-800 text-[10.5px] truncate">{{ signerName }}</p>
-                  <p class="text-slate-400 text-[9px] mt-0.5 truncate">{{ signerTitle }}</p>
                 </div>
               </div>
             </div>
