@@ -59,3 +59,34 @@
 .animate-float-medium {
   animation: float-medium 8s infinite ease-in-out;
 }
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.6);
+}
+
+/* Custom interactive active border and focus effects */
+input:focus, select:focus, textarea:focus {
+  border-color: var(--accent-focus, #000) !important;
+  box-shadow: 0 0 0 3px var(--accent-focus-ring, rgba(0, 0, 0, 0.08)) !important;
+  outline: none !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Glassmorphism elements */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(12px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}

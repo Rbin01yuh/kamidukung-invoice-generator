@@ -85,7 +85,7 @@ const faqs = [
     a: 'Ya! Ekspor PDF dan Word kami dirancang secara profesional dengan dukungan margin dinamis, tabel item multi-kolom otomatis, perhitungan pajak (PPN), diskon, informasi rekening bank, tanda tangan digital, serta pilihan warna aksen branding perusahaan Anda.'
   },
   {
-    q: 'Apakah layanan KAMIDUKUNG Invoice ini berbayar?',
+    q: 'Apakah layanan Kaduin ini berbayar?',
     a: 'Layanan pembuat invoice ini 100% gratis untuk digunakan secara offline/client-side tanpa batasan jumlah invoice yang dibuat. Kami berencana merilis paket Pro di masa mendatang bagi pengguna yang membutuhkan sinkronisasi cloud, kolaborasi tim, dan pelacakan invoice otomatis.'
   }
 ]
@@ -107,16 +107,10 @@ const faqs = [
         
         <!-- Logo -->
         <a href="#" class="flex items-center gap-3 group">
-          <div class="relative flex items-center justify-center w-10 h-10 rounded-xl bg-[#1F3A5F] text-white shadow-md shadow-[#1F3A5F]/20 group-hover:scale-105 transition-transform duration-300">
-            <FileText class="w-5.5 h-5.5" />
-            <span class="absolute -top-1 -right-1 flex h-3.5 w-3.5">
-              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#10B981] opacity-75"></span>
-              <span class="relative inline-flex rounded-full h-3.5 w-3.5 bg-[#10B981]"></span>
-            </span>
-          </div>
+          <img :src="'/images/kaduin.png'" alt="Kaduin Logo" class="w-14 h-14 object-contain rounded-2xl shadow-md group-hover:scale-105 transition-transform duration-300" />
           <div class="flex flex-col">
-            <span class="text-lg font-extrabold tracking-tight text-[#1F3A5F] font-display leading-tight">KAMIDUKUNG</span>
-            <span class="text-xs font-semibold tracking-widest text-[#10B981] uppercase leading-none">INVOICE</span>
+            <span class="text-xl font-black tracking-tight text-[#1F3A5F] font-display leading-none">KADUIN</span>
+            <span class="text-[10px] font-extrabold tracking-widest text-[#10B981] uppercase mt-0.5">INVOICE</span>
           </div>
         </a>
 
@@ -554,7 +548,7 @@ const faqs = [
               <!-- Paper Footer -->
               <div class="px-6 py-4.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
                 <span>Terima kasih atas kerja samanya.</span>
-                <span class="font-bold text-[#1F3A5F]">KAMIDUKUNG Invoice</span>
+                <span class="font-bold text-[#1F3A5F]">KADUIN Invoice</span>
               </div>
 
             </div>
@@ -599,7 +593,7 @@ const faqs = [
               <ul class="space-y-3.5 text-sm text-[#1F3A5F]/85">
                 <li class="flex items-center gap-3">
                   <Check class="w-4.5 h-4.5 text-[#10B981] shrink-0" />
-                  <span>Unlimited Pembuatan Invoice</span>
+                  <span>10x Trial Pembuatan & Unduh Invoice</span>
                 </li>
                 <li class="flex items-center gap-3">
                   <Check class="w-4.5 h-4.5 text-[#10B981] shrink-0" />
@@ -609,8 +603,8 @@ const faqs = [
                   <Check class="w-4.5 h-4.5 text-[#10B981] shrink-0" />
                   <span>Kustomisasi logo & warna branding penuh</span>
                 </li>
-                <li class="flex items-center gap-3">
-                  <Check class="w-4.5 h-4.5 text-[#10B981] shrink-0" />
+                <li class="flex items-center gap-3 text-[#1F3A5F]/45 line-through">
+                  <X class="w-4.5 h-4.5 text-red-400 shrink-0" />
                   <span>Integrasi Resend API untuk kirim email langsung</span>
                 </li>
                 <li class="flex items-center gap-3">
@@ -640,7 +634,7 @@ const faqs = [
                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-violet-100 text-violet-700">COMING SOON</span>
               </div>
               <div class="flex items-baseline">
-                <span class="text-4xl font-extrabold text-[#1F3A5F] font-display">TBD</span>
+                <span class="text-4xl font-extrabold text-[#1F3A5F] font-display">Rp 25.000</span>
                 <span class="text-sm font-semibold text-slate-400 ml-1">/ bulan</span>
               </div>
               
@@ -648,23 +642,23 @@ const faqs = [
               <ul class="space-y-3.5 text-sm text-[#1F3A5F]/75">
                 <li class="flex items-center gap-3">
                   <Check class="w-4.5 h-4.5 text-violet-500 shrink-0" />
-                  <span>Semua fitur yang ada pada Paket Free</span>
+                  <span>Unlimited Pembuatan & Unduh Invoice</span>
                 </li>
                 <li class="flex items-center gap-3">
                   <Check class="w-4.5 h-4.5 text-violet-500 shrink-0" />
-                  <span>Sinkronisasi Cloud & Penyimpanan Database Aman</span>
+                  <span>Kirim email otomatis via Resend API</span>
                 </li>
                 <li class="flex items-center gap-3">
                   <Check class="w-4.5 h-4.5 text-violet-500 shrink-0" />
-                  <span>Multi-User (Kolaborasi Tim secara real-time)</span>
+                  <span>Sinkronisasi Cloud & Database Aman (Coming Soon)</span>
                 </li>
                 <li class="flex items-center gap-3">
                   <Check class="w-4.5 h-4.5 text-violet-500 shrink-0" />
-                  <span>Pengiriman notifikasi invoice via WhatsApp</span>
+                  <span>Multi-User & Kolaborasi Tim (Coming Soon)</span>
                 </li>
                 <li class="flex items-center gap-3">
                   <Check class="w-4.5 h-4.5 text-violet-500 shrink-0" />
-                  <span>Dashboard analisis pendapatan & grafik</span>
+                  <span>Dashboard analisis pendapatan & grafik (Coming Soon)</span>
                 </li>
               </ul>
             </div>
@@ -734,12 +728,10 @@ const faqs = [
         
         <!-- Logo -->
         <div class="flex items-center gap-3">
-          <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1F3A5F] text-white">
-            <FileText class="w-4 h-4" />
-          </div>
+          <img :src="'/images/kaduin.png'" alt="Kaduin Logo" class="w-11 h-11 object-contain rounded-xl shadow-xs" />
           <div class="flex flex-col text-left">
-            <span class="text-sm font-extrabold tracking-tight text-[#1F3A5F] font-display">KAMIDUKUNG INVOICE</span>
-            <span class="text-[9px] font-semibold tracking-wider text-slate-400 leading-none">© 2026 KAMIDUKUNG. All rights reserved.</span>
+            <span class="text-sm font-extrabold tracking-tight text-[#1F3A5F] font-display">KADUIN INVOICE</span>
+            <span class="text-[9px] font-semibold tracking-wider text-slate-400 leading-none">© 2026 KADUIN. All rights reserved.</span>
           </div>
         </div>
 

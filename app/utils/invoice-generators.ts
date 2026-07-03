@@ -47,6 +47,9 @@ export interface InvoiceData {
   accentColor: string; // hex
   logoSize?: number; // px in preview, pt in pdf
   signatureSize?: number; // px in preview, pt in pdf
+  fontId?: string;
+  fontName?: string;
+  paymentQrDataUrl?: string;
 }
 
 export const fmt = (n: number) =>
@@ -85,7 +88,7 @@ const satuan = [
 ];
 function terbilangNum(n: number): string {
   n = Math.floor(n);
-  if (n < 12) return satuan[n];
+  if (n < 12) return satuan[n] || "";
   if (n < 20) return terbilangNum(n - 10) + " Belas";
   if (n < 100)
     return terbilangNum(Math.floor(n / 10)) + " Puluh" + (n % 10 ? " " + terbilangNum(n % 10) : "");
@@ -132,8 +135,10 @@ function hexToRgb(hex: string): [number, number, number] {
 export async function generatePdf(data: InvoiceData): Promise<Blob> {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
   const margin = 40;
   const [r, g, b] = hexToRgb(data.accentColor);
+  const pdfFont = data.fontId || "helvetica";
 
   // Logo (no text next to it)
   const logoSize = data.logoSize ?? 60;
@@ -147,14 +152,14 @@ export async function generatePdf(data: InvoiceData): Promise<Blob> {
 
   // INVOICE title
   doc.setFontSize(28);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(pdfFont, "bold");
   doc.setTextColor(r, g, b);
   doc.text("INVOICE", pageW - margin, 60, { align: "right" });
 
   // Reference / dates
   doc.setFontSize(10);
   doc.setTextColor(60, 60, 60);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(pdfFont, "normal");
   const labelX = pageW - margin - 180;
   const valX = pageW - margin;
   let y = 95;
@@ -165,15 +170,19 @@ export async function generatePdf(data: InvoiceData): Promise<Blob> {
   ];
   rows.forEach(([k, v]) => {
     doc.text(k, labelX, y, { align: "right" });
-    doc.setFont("helvetica", "bold");
+    doc.setFont(pdfFont, "bold");
     doc.text(v, valX, y, { align: "right" });
-    doc.setFont("helvetica", "normal");
+    doc.setFont(pdfFont, "normal");
     y += 16;
   });
 
+  // Calculate dynamic secY (based on logo size & header text bottom)
+  const logoHeight = data.logoDataUrl ? logoSize : 0;
+  const headerBottom = Math.max(40 + logoHeight, 145);
+  const secY = headerBottom + 20;
+
   // Section headers
-  const secY = 170;
-  doc.setFont("helvetica", "bold");
+  doc.setFont(pdfFont, "bold");
   doc.setFontSize(11);
   doc.setTextColor(r, g, b);
   doc.text("Informasi Perusahaan", margin, secY);
@@ -185,32 +194,59 @@ export async function generatePdf(data: InvoiceData): Promise<Blob> {
   doc.line(pageW / 2 + 10, secY + 6, pageW - margin, secY + 6);
 
   // Company
-  doc.setFont("helvetica", "bold");
+  let companyY = secY + 26;
+  doc.setFont(pdfFont, "bold");
   doc.setFontSize(11);
   doc.setTextColor(r, g, b);
-  doc.text(data.companyName, margin, secY + 26);
-  doc.setFont("helvetica", "normal");
+  doc.text(data.companyName, margin, companyY);
+
+  doc.setFont(pdfFont, "normal");
   doc.setTextColor(60, 60, 60);
   doc.setFontSize(10);
-  doc.text(data.companyAddress, margin, secY + 42);
-  doc.text(`Telp: ${data.companyPhone}`, margin, secY + 56);
-  doc.text(`Email: ${data.companyEmail}`, margin, secY + 70);
+  const companyAddressLines = doc.splitTextToSize(data.companyAddress, pageW / 2 - 50);
+  companyY += 16;
+  doc.text(companyAddressLines, margin, companyY);
+  companyY += (companyAddressLines.length - 1) * 12 + 16;
+
+  if (data.companyPhone) {
+    doc.text(`Telp: ${data.companyPhone}`, margin, companyY);
+    companyY += 14;
+  }
+  if (data.companyEmail) {
+    doc.text(`Email: ${data.companyEmail}`, margin, companyY);
+    companyY += 14;
+  }
 
   // Client
-  doc.setFont("helvetica", "bold");
+  let clientY = secY + 26;
+  doc.setFont(pdfFont, "bold");
   doc.setTextColor(r, g, b);
   doc.setFontSize(11);
-  doc.text(data.clientName, pageW / 2 + 10, secY + 26);
-  doc.setFont("helvetica", "normal");
+  doc.text(data.clientName, pageW / 2 + 10, clientY);
+
+  doc.setFont(pdfFont, "normal");
   doc.setTextColor(60, 60, 60);
   doc.setFontSize(10);
-  doc.text(data.clientAddress, pageW / 2 + 10, secY + 42);
-  doc.text(`Telp: ${data.clientPhone}`, pageW / 2 + 10, secY + 56);
-  doc.text(`Email: ${data.clientEmail}`, pageW / 2 + 10, secY + 70);
+  const clientAddressLines = doc.splitTextToSize(data.clientAddress, pageW / 2 - 50);
+  clientY += 16;
+  doc.text(clientAddressLines, pageW / 2 + 10, clientY);
+  clientY += (clientAddressLines.length - 1) * 12 + 16;
+
+  if (data.clientPhone) {
+    doc.text(`Telp: ${data.clientPhone}`, pageW / 2 + 10, clientY);
+    clientY += 14;
+  }
+  if (data.clientEmail) {
+    doc.text(`Email: ${data.clientEmail}`, pageW / 2 + 10, clientY);
+    clientY += 14;
+  }
+
+  // Start table dynamically below company & client info
+  const tableStartY = Math.max(companyY, clientY) + 15;
 
   // Items table
   autoTable(doc, {
-    startY: secY + 95,
+    startY: tableStartY,
     head: [["Produk", "Deskripsi", "Kuantitas", "Harga", "Diskon", "Pajak", "Jumlah"]],
     body: data.items.map((it) => [
       it.product,
@@ -221,7 +257,7 @@ export async function generatePdf(data: InvoiceData): Promise<Blob> {
       `${it.tax}%`,
       fmt(lineTotal(it)),
     ]),
-    styles: { fontSize: 9, cellPadding: 8, textColor: [60, 60, 60] },
+    styles: { font: pdfFont, fontSize: 9, cellPadding: 8, textColor: [60, 60, 60] },
     headStyles: {
       fillColor: [r, g, b],
       textColor: [255, 255, 255],
@@ -241,49 +277,82 @@ export async function generatePdf(data: InvoiceData): Promise<Blob> {
 
   const afterTableY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 25;
 
+  // Message height estimation
+  const msgLines = doc.splitTextToSize(data.message, pageW / 2 - 60);
+  
+  // Calculate total vertical height needed for the bottom block:
+  // - Pesan header + line = ~25pt
+  // - Message body lines = msgLines.length * 12 + 14pt
+  // - Terbilang header + text = ~50pt
+  // - QR Code block (if active) = ~90pt
+  // - Signature block (Dengan Hormat to Signer Title) = ~120pt
+  const hasQr = !!data.paymentQrDataUrl;
+  const requiredBottomHeight = 260 + (msgLines.length * 12) + (hasQr ? 90 : 0);
+  const bottomMargin = 40;
+  
+  let bottomY = afterTableY;
+  if (bottomY + requiredBottomHeight > pageH - bottomMargin) {
+    doc.addPage();
+    bottomY = 40;
+  }
+
   // Pesan
-  doc.setFont("helvetica", "bold");
+  doc.setFont(pdfFont, "bold");
   doc.setTextColor(r, g, b);
   doc.setFontSize(11);
-  doc.text("Pesan", margin, afterTableY);
+  doc.text("Pesan", margin, bottomY);
   doc.setDrawColor(r, g, b);
-  doc.line(margin, afterTableY + 6, pageW / 2 - 20, afterTableY + 6);
+  doc.line(margin, bottomY + 6, pageW / 2 - 20, bottomY + 6);
 
-  doc.setFont("helvetica", "normal");
+  doc.setFont(pdfFont, "normal");
   doc.setTextColor(60, 60, 60);
   doc.setFontSize(10);
-  const msgLines = doc.splitTextToSize(data.message, pageW / 2 - 60);
-  doc.text(msgLines, margin, afterTableY + 24);
+  doc.text(msgLines, margin, bottomY + 24);
 
-  doc.text("Terbilang", margin, afterTableY + 24 + msgLines.length * 12 + 16);
-  doc.setFont("helvetica", "bold");
-  doc.text(terbilang(grandTotal(data.items)), margin, afterTableY + 24 + msgLines.length * 12 + 30);
+  const terbilangY = bottomY + 24 + msgLines.length * 12 + 16;
+  doc.text("Terbilang", margin, terbilangY);
+  doc.setFont(pdfFont, "bold");
+  doc.text(terbilang(grandTotal(data.items)), margin, terbilangY + 14);
+
+  // Draw QR code under the Terbilang text
+  if (data.paymentQrDataUrl) {
+    try {
+      const qrY = terbilangY + 32;
+      doc.setFont(pdfFont, "bold");
+      doc.setFontSize(10);
+      doc.setTextColor(r, g, b);
+      doc.text("Scan QRIS untuk Bayar:", margin, qrY);
+      doc.addImage(data.paymentQrDataUrl, "PNG", margin, qrY + 8, 70, 70);
+    } catch {
+      /* noop */
+    }
+  }
 
   // Totals
   const totalsX = pageW / 2 + 10;
   const totalsValX = pageW - margin;
-  let ty = afterTableY;
-  doc.setFont("helvetica", "bold");
+  let ty = bottomY;
+  doc.setFont(pdfFont, "bold");
   doc.setTextColor(40, 40, 40);
   doc.setFontSize(11);
   doc.text("Subtotal", totalsX, ty);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(pdfFont, "normal");
   doc.text(`Rp ${fmt(subtotal(data.items))}`, totalsValX, ty, { align: "right" });
   ty += 22;
-  doc.setFont("helvetica", "bold");
+  doc.setFont(pdfFont, "bold");
   doc.text("Total Diskon", totalsX, ty);
-  doc.setFont("helvetica", "normal");
+  doc.setFont(pdfFont, "normal");
   doc.text(`(Rp ${fmt(totalDiscount(data.items))})`, totalsValX, ty, { align: "right" });
   ty += 28;
-  doc.setFont("helvetica", "bold");
+  doc.setFont(pdfFont, "bold");
   doc.setFontSize(14);
   doc.setTextColor(r, g, b);
   doc.text("Total", totalsX, ty);
   doc.text(`Rp ${fmt(grandTotal(data.items))}`, totalsValX, ty, { align: "right" });
 
   // Signature
-  const sigY = Math.max(ty + 80, afterTableY + 140);
-  doc.setFont("helvetica", "normal");
+  const sigY = Math.max(ty + 60, bottomY + 140);
+  doc.setFont(pdfFont, "normal");
   doc.setFontSize(10);
   doc.setTextColor(60, 60, 60);
   doc.text("Dengan Hormat,", pageW - margin - 100, sigY, { align: "center" });
@@ -306,9 +375,9 @@ export async function generatePdf(data: InvoiceData): Promise<Blob> {
   doc.setDrawColor(60, 60, 60);
   doc.setLineWidth(0.5);
   doc.line(pageW - margin - 180, sigY + 80, pageW - margin - 20, sigY + 80);
-  doc.setFont("helvetica", "bold");
+  doc.setFont(pdfFont, "bold");
   doc.text(data.signerName, pageW - margin - 100, sigY + 94, { align: "center" });
-  doc.setFont("helvetica", "normal");
+  doc.setFont(pdfFont, "normal");
   doc.text(data.signerTitle, pageW - margin - 100, sigY + 108, { align: "center" });
 
   return doc.output("blob");
@@ -338,6 +407,7 @@ function imgType(dataUrl: string): "png" | "jpg" {
 export async function generateDocx(data: InvoiceData): Promise<Blob> {
   const accent = colorHexNoHash(data.accentColor);
   const muted = "555555";
+  const fontName = data.fontName || "Arial";
 
   const noBorder = {
     top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
@@ -459,7 +529,7 @@ export async function generateDocx(data: InvoiceData): Promise<Blob> {
       children: [new Paragraph({ alignment: align, children: [new TextRun({ text, color: muted })] })],
     });
 
-  const widths = [1300, 2600, 900, 1300, 900, 900, 1100];
+  const widths: [number, number, number, number, number, number, number] = [1300, 2600, 900, 1300, 900, 900, 1100];
   const totalW = widths.reduce((a, b) => a + b, 0);
 
   const itemsTable = new Table({
@@ -495,20 +565,46 @@ export async function generateDocx(data: InvoiceData): Promise<Blob> {
   });
 
   // Totals + message side by side
+  const messageChildren: Paragraph[] = [
+    new Paragraph({
+      children: [new TextRun({ text: "Pesan", bold: true, color: accent, size: 22 })],
+      border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: accent, space: 4 } },
+    }),
+    new Paragraph({ children: [new TextRun({ text: "" })] }),
+    new Paragraph({ children: [new TextRun({ text: data.message, color: muted })] }),
+    new Paragraph({ children: [new TextRun({ text: "" })] }),
+    new Paragraph({ children: [new TextRun({ text: "Terbilang", color: muted })] }),
+    new Paragraph({ children: [new TextRun({ text: terbilang(grandTotal(data.items)), bold: true })] }),
+  ];
+
+  if (data.paymentQrDataUrl) {
+    try {
+      messageChildren.push(new Paragraph({ children: [new TextRun({ text: "" })] }));
+      messageChildren.push(
+        new Paragraph({
+          children: [new TextRun({ text: "Scan QRIS untuk Bayar:", bold: true, color: accent, size: 22 })],
+        })
+      );
+      messageChildren.push(
+        new Paragraph({
+          children: [
+            new ImageRun({
+              type: "png",
+              data: dataUrlToUint8(data.paymentQrDataUrl),
+              transformation: { width: 80, height: 80 },
+            } as any),
+          ],
+        })
+      );
+    } catch {
+      /* noop */
+    }
+  }
+
   const messageCell = new TableCell({
     borders: noBorder,
     width: { size: 4500, type: WidthType.DXA },
-    children: [
-      new Paragraph({
-        children: [new TextRun({ text: "Pesan", bold: true, color: accent, size: 22 })],
-        border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: accent, space: 4 } },
-      }),
-      new Paragraph({ children: [new TextRun({ text: "" })] }),
-      new Paragraph({ children: [new TextRun({ text: data.message, color: muted })] }),
-      new Paragraph({ children: [new TextRun({ text: "" })] }),
-      new Paragraph({ children: [new TextRun({ text: "Terbilang", color: muted })] }),
-      new Paragraph({ children: [new TextRun({ text: terbilang(grandTotal(data.items)), bold: true })] }),
-    ],
+    children: messageChildren,
   });
 
   const totalsRow = (label: string, value: string, bold = false, big = false) =>
@@ -575,6 +671,15 @@ export async function generateDocx(data: InvoiceData): Promise<Blob> {
   }
 
   const doc = new Document({
+    styles: {
+      default: {
+        document: {
+          run: {
+            font: fontName,
+          },
+        },
+      },
+    },
     sections: [
       {
         properties: {

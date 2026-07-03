@@ -135,7 +135,7 @@ const buildEmailHtml = (
   <p>Mohon konfirmasi setelah pembayaran dilakukan. Terima kasih atas kerjasamanya.</p>
   <p style="margin-top:24px">Hormat kami,<br><strong>${signerName}</strong><br>${signerTitle}<br>${companyName}</p>
   <hr style="border:none;border-top:1px solid #e5e7eb;margin-top:32px">
-  <p style="color:#9ca3af;font-size:12px">Invoice ini dikirim otomatis melalui Invoice Generator &mdash; KAMIDUKUNG</p>
+  <p style="color:#9ca3af;font-size:12px">Invoice ini dikirim otomatis melalui Invoice Generator &mdash; KADUIN</p>
 </body></html>`
 }
 
@@ -143,11 +143,11 @@ const buildEmailHtml = (
 const MESSAGE_TEMPLATES = [
   {
     name: "Transfer Bank BCA (Default)",
-    text: "Pembayaran dapat dilakukan melalui transfer ke rekening berikut:\n\nBank BCA\nNo. Rekening: 8001077961\na.n. KAMIDUKUNG\n\nMohon mengirimkan bukti transfer setelah pembayaran dilakukan. Terima kasih."
+    text: "Pembayaran dapat dilakukan melalui transfer ke rekening berikut:\n\nBank BCA\nNo. Rekening: 8001077961\na.n. KADUIN\n\nMohon mengirimkan bukti transfer setelah pembayaran dilakukan. Terima kasih."
   },
   {
     name: "DP & Termin Pelunasan (50/50)",
-    text: "Invoice ini merupakan tagihan pembayaran termin awal (DP 50%).\n\nSisa pembayaran 50% berikutnya akan ditagihkan setelah proyek diserahterimakan.\n\nDetail Rekening:\nBank BCA\nNo. Rekening: 8001077961\na.n. KAMIDUKUNG"
+    text: "Invoice ini merupakan tagihan pembayaran termin awal (DP 50%).\n\nSisa pembayaran 50% berikutnya akan ditagihkan setelah proyek diserahterimakan.\n\nDetail Rekening:\nBank BCA\nNo. Rekening: 8001077961\na.n. KADUIN"
   },
   {
     name: "Tenggat Waktu Ketat (Strict Terms)",
@@ -162,7 +162,7 @@ const MESSAGE_TEMPLATES = [
 // Invoice Auto-fill Presets
 const INVOICE_PRESETS = {
   company: [
-    { label: "KAMIDUKUNG", name: "KAMIDUKUNG", address: "Jl. Letnan Jenderal S. Parman No. 28, Jakarta Barat", phone: "+62 812 3456 7890", email: "finance@kamidukung.com" },
+    { label: "KADUIN", name: "KADUIN", address: "Jl. Letnan Jenderal S. Parman No. 28, Jakarta Barat", phone: "+62 812 3456 7890", email: "finance@kaduin.com" },
     { label: "Kreatif Studio", name: "Kreatif Studio Indonesia", address: "Jl. Kemang Raya No. 45, Mampang Prapatan, Jakarta Selatan", phone: "+62 811 9988 7766", email: "hello@kreatifstudio.id" },
     { label: "Maju Jaya Solusindo", name: "PT Maju Jaya Solusindo", address: "Ruko Golden Boulevard Blk. E No. 12, Serpong, Tangerang Selatan", phone: "+62 21 5432 1098", email: "billing@majujayasolusindo.co.id" }
   ],
@@ -211,10 +211,10 @@ const reference = ref('INV/2026/001')
 const date = ref(todayIso())
 const dueDate = ref(plusDaysIso(30))
 
-const companyName = ref('KAMIDUKUNG')
+const companyName = ref('KADUIN')
 const companyAddress = ref('Jl. Letnan Jenderal S. Parman No. 28, Jakarta Barat')
 const companyPhone = ref('+62 812 3456 7890')
-const companyEmail = ref('finance@kamidukung.com')
+const companyEmail = ref('finance@kaduin.com')
 
 const clientName = ref('PT Digital Nusantara')
 const clientAddress = ref('Sudirman Central Business District (SCBD) Lot 10, Jakarta Selatan')
@@ -233,16 +233,167 @@ const items = ref([
 ])
 
 const message = ref(MESSAGE_TEMPLATES[0].text)
-const signerName = ref('Kirana Putri')
-const signerTitle = ref('Finance & Billing Lead')
+const signerName = ref('RIDHO BINTANG AULIA')
+const signerTitle = ref('a.n. KADUIN')
 
 const busy = ref(null)
 const showSettings = ref(false)
 const resendKeyInput = ref('')
 const savedKeyNotice = ref('')
 
-onMounted(() => {
+// Fonts list
+const FONT_OPTIONS = [
+  { id: 'inter', name: 'Inter (Clean Sans)', css: "'Inter', sans-serif", pdf: 'helvetica', docx: 'Arial' },
+  { id: 'outfit', name: 'Outfit (Modern Geometric)', css: "'Outfit', sans-serif", pdf: 'helvetica', docx: 'Calibri' },
+  { id: 'playfair', name: 'Playfair Display (Elegant Serif)', css: "'Playfair Display', serif", pdf: 'times', docx: 'Georgia' },
+  { id: 'lora', name: 'Lora (Warm Serif)', css: "'Lora', serif", pdf: 'times', docx: 'Times New Roman' },
+  { id: 'montserrat', name: 'Montserrat (Stylish Sans)', css: "'Montserrat', sans-serif", pdf: 'helvetica', docx: 'Verdana' },
+  { id: 'courier', name: 'Courier Prime (Retro Monospace)', css: "'Courier Prime', monospace", pdf: 'courier', docx: 'Courier New' }
+]
+const selectedFont = ref(FONT_OPTIONS[0])
+const selectFont = (font) => {
+  selectedFont.value = font
+  localStorage.setItem('selected_font', font.id)
+}
+
+// Plan & Trial States
+const userTier = ref('free') // 'free' | 'pro'
+const trialCount = ref(0)
+const showUpgradeModal = ref(false)
+const showCheckoutModal = ref(false)
+const checkoutBusy = ref(false)
+const selectedPaymentMethod = ref('qris')
+
+const switchTier = (tier) => {
+  if (tier === 'pro') {
+    toast.info("Pro Tier Segera Hadir!", { description: "Layanan pembayaran belum dibuka saat ini." })
+    return
+  }
+  userTier.value = tier
+  localStorage.setItem('user_tier', tier)
+}
+
+const handlePayment = () => {
+  checkoutBusy.value = true
+  setTimeout(() => {
+    checkoutBusy.value = false
+    showCheckoutModal.value = false
+    showUpgradeModal.value = false
+    userTier.value = 'pro'
+    localStorage.setItem('user_tier', 'pro')
+    toast.success("Pembayaran Sukses!", { description: "Akun Anda telah berhasil ditingkatkan ke Pro Tier." })
+  }, 1800)
+}
+
+const syncTrialStatus = async () => {
+  try {
+    const res = await fetch('/api/trial-status')
+    const data = await res.json()
+    if (data && typeof data.count === 'number') {
+      const localCount = parseInt(localStorage.getItem('trial_count') || '0', 10)
+      const syncedCount = Math.max(localCount, data.count)
+      trialCount.value = syncedCount
+      localStorage.setItem('trial_count', syncedCount.toString())
+    }
+  } catch (e) {
+    console.error("Failed to sync trial status:", e)
+  }
+}
+
+// Pro Premium Features: QRIS & Signature Canvas Pad
+const showPaymentQr = ref(false)
+const paymentQrBank = ref('BCA')
+const paymentQrAccount = ref('8001077961')
+const paymentQrHolder = ref('KADUIN')
+
+const showSigPad = ref(false)
+const sigCanvasRef = ref(null)
+const isDrawing = ref(false)
+let ctx = null
+
+const startDrawing = (e) => {
+  isDrawing.value = true
+  const canvas = sigCanvasRef.value
+  if (!canvas) return
+  ctx = canvas.getContext('2d')
+  ctx.strokeStyle = '#000000'
+  ctx.lineWidth = 2
+  ctx.lineCap = 'round'
+  ctx.lineJoin = 'round'
+  ctx.beginPath()
+  
+  const rect = canvas.getBoundingClientRect()
+  const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0)
+  const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0)
+  const x = clientX - rect.left
+  const y = clientY - rect.top
+  ctx.moveTo(x, y)
+}
+
+const draw = (e) => {
+  if (!isDrawing.value) return
+  const canvas = sigCanvasRef.value
+  if (!canvas) return
+  const rect = canvas.getBoundingClientRect()
+  const clientX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0)
+  const clientY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0)
+  const x = clientX - rect.left
+  const y = clientY - rect.top
+  ctx.lineTo(x, y)
+  ctx.stroke()
+}
+
+const stopDrawing = () => {
+  isDrawing.value = false
+}
+
+const clearCanvas = () => {
+  const canvas = sigCanvasRef.value
+  if (!canvas) return
+  const context = canvas.getContext('2d')
+  context.clearRect(0, 0, canvas.width, canvas.height)
+}
+
+const saveCanvas = () => {
+  const canvas = sigCanvasRef.value
+  if (!canvas) return
+  signature.value = canvas.toDataURL('image/png')
+  toast.success("Tanda tangan berhasil disimpan dari pad!")
+  showSigPad.value = false
+}
+
+const getQrCodeDataUrl = async (text) => {
+  const url = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(text)}`
+  try {
+    const res = await fetch(url)
+    const blob = await res.blob()
+    return new Promise((resolve) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result)
+      reader.readAsDataURL(blob)
+    })
+  } catch (e) {
+    console.error("Failed to generate QR Code:", e)
+    return null
+  }
+}
+
+onMounted(async () => {
   resendKeyInput.value = getStoredResendKey()
+  
+  // Load selected font
+  const savedFontId = localStorage.getItem('selected_font')
+  if (savedFontId) {
+    const found = FONT_OPTIONS.find(f => f.id === savedFontId)
+    if (found) selectedFont.value = found
+  }
+
+  // Load user tier and trial count
+  userTier.value = localStorage.getItem('user_tier') || 'free'
+  trialCount.value = parseInt(localStorage.getItem('trial_count') || '0', 10)
+
+  // Sync with IP trial status from server
+  await syncTrialStatus()
 })
 
 const invoiceData = computed(() => ({
@@ -266,6 +417,8 @@ const invoiceData = computed(() => ({
   accentColor: accentColor.value,
   logoSize: logoSize.value,
   signatureSize: signatureSize.value,
+  fontId: selectedFont.value.pdf,
+  fontName: selectedFont.value.docx,
 }))
 
 const fileBase = computed(() => {
@@ -301,11 +454,38 @@ const removeItem = (index) => {
 
 // Download PDF
 const onDownloadPdf = async () => {
+  if (userTier.value === 'free' && trialCount.value >= 10) {
+    showUpgradeModal.value = true
+    toast.error("Batas trial terlampaui!", { description: "Silakan tingkatkan ke Pro Tier untuk download tanpa batas." })
+    return
+  }
   busy.value = "pdf"
   try {
-    const blob = await generatePdf(invoiceData.value)
+    let qrDataUrl = undefined
+    if (showPaymentQr.value && userTier.value === 'pro') {
+      const qrText = `Transfer Bank ${paymentQrBank.value} No. Rek: ${paymentQrAccount.value} a.n ${paymentQrHolder.value} Total: Rp ${fmt(grandTotal(items.value))}`
+      qrDataUrl = await getQrCodeDataUrl(qrText)
+    }
+
+    const blob = await generatePdf({
+      ...invoiceData.value,
+      paymentQrDataUrl: qrDataUrl
+    })
     downloadPdf(blob, `${fileBase.value}.pdf`)
     toast.success("PDF berhasil diunduh")
+    if (userTier.value === 'free') {
+      try {
+        const response = await fetch('/api/increment-trial', { method: 'POST' })
+        const data = await response.json()
+        if (data && typeof data.count === 'number') {
+          trialCount.value = data.count
+          localStorage.setItem('trial_count', data.count.toString())
+        }
+      } catch (e) {
+        trialCount.value++
+        localStorage.setItem('trial_count', trialCount.value.toString())
+      }
+    }
   } catch (e) {
     console.error(e)
     toast.error("Gagal membuat PDF")
@@ -316,11 +496,38 @@ const onDownloadPdf = async () => {
 
 // Download Word
 const onDownloadDocx = async () => {
+  if (userTier.value === 'free' && trialCount.value >= 10) {
+    showUpgradeModal.value = true
+    toast.error("Batas trial terlampaui!", { description: "Silakan tingkatkan ke Pro Tier untuk download tanpa batas." })
+    return
+  }
   busy.value = "docx"
   try {
-    const blob = await generateDocx(invoiceData.value)
+    let qrDataUrl = undefined
+    if (showPaymentQr.value && userTier.value === 'pro') {
+      const qrText = `Transfer Bank ${paymentQrBank.value} No. Rek: ${paymentQrAccount.value} a.n ${paymentQrHolder.value} Total: Rp ${fmt(grandTotal(items.value))}`
+      qrDataUrl = await getQrCodeDataUrl(qrText)
+    }
+
+    const blob = await generateDocx({
+      ...invoiceData.value,
+      paymentQrDataUrl: qrDataUrl
+    })
     downloadDocx(blob, `${fileBase.value}.docx`)
     toast.success("DOCX berhasil diunduh")
+    if (userTier.value === 'free') {
+      try {
+        const response = await fetch('/api/increment-trial', { method: 'POST' })
+        const data = await response.json()
+        if (data && typeof data.count === 'number') {
+          trialCount.value = data.count
+          localStorage.setItem('trial_count', data.count.toString())
+        }
+      } catch (e) {
+        trialCount.value++
+        localStorage.setItem('trial_count', trialCount.value.toString())
+      }
+    }
   } catch (e) {
     console.error(e)
     toast.error("Gagal membuat DOCX")
@@ -340,15 +547,31 @@ const onSaveSettings = () => {
 
 // Send Email via Resend
 const onSendEmail = async () => {
+  if (userTier.value === 'free') {
+    showUpgradeModal.value = true
+    toast.error("Kirim email adalah fitur Pro!", { description: "Silakan tingkatkan ke Pro Tier untuk menggunakan fitur kirim email." })
+    return
+  }
   if (!clientEmail.value) {
     toast.error("Email klien wajib diisi")
     return
   }
   busy.value = "email"
   try {
+    let qrDataUrl = undefined
+    if (showPaymentQr.value && userTier.value === 'pro') {
+      const qrText = `Transfer Bank ${paymentQrBank.value} No. Rek: ${paymentQrAccount.value} a.n ${paymentQrHolder.value} Total: Rp ${fmt(grandTotal(items.value))}`
+      qrDataUrl = await getQrCodeDataUrl(qrText)
+    }
+
+    const payload = {
+      ...invoiceData.value,
+      paymentQrDataUrl: qrDataUrl
+    }
+
     const [pdfBlob, docxBlob] = await Promise.all([
-      generatePdf(invoiceData.value),
-      generateDocx(invoiceData.value),
+      generatePdf(payload),
+      generateDocx(payload),
     ])
 
     const subject = `Invoice ${reference.value} - ${companyName.value}`
@@ -462,7 +685,7 @@ const onSendEmail = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-slate-50 flex flex-col relative">
+  <div :style="{ '--accent-focus': accentColor, '--accent-focus-ring': accentColor + '20' }" class="min-h-screen bg-slate-50 flex flex-col relative">
     
     <!-- Custom Toast Notifications Overlay -->
     <div class="fixed top-5 left-1/2 -translate-x-1/2 z-[100] flex flex-col gap-2.5 w-full max-w-sm px-4">
@@ -502,20 +725,10 @@ const onSendEmail = async () => {
             <ArrowLeft class="w-5 h-5 text-slate-600" />
           </NuxtLink>
           <div class="flex items-center gap-3">
-            <svg width="34" height="34" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="8" y="4" width="42" height="56" rx="4" :fill="accentColor" :stroke="accentColor" stroke-width="0.5" />
-              <path d="M50 4V14C50 14 42 14 42 14C38 14 38 10 38 10L38 4H50Z" :fill="accentColor === '#1F3A5F' ? '#3B6FA0' : accentColor" />
-              <path d="M50 4L42 4V14L50 4Z" fill="white" fill-opacity="0.3" />
-              <path d="M38 4V10C38 12.2091 39.7909 14 42 14H50" :stroke="accentColor" stroke-width="0.5" fill="none" />
-              <rect x="16" y="22" width="18" height="2.5" rx="1.25" fill="white" fill-opacity="0.9" />
-              <rect x="16" y="28" width="24" height="2.5" rx="1.25" fill="white" fill-opacity="0.7" />
-              <rect x="16" y="34" width="20" height="2.5" rx="1.25" fill="white" fill-opacity="0.5" />
-              <circle cx="52" cy="52" r="10" :fill="accentColor === '#1F3A5F' ? '#3B6FA0' : accentColor" />
-              <text x="52" y="56" text-anchor="middle" fill="white" font-size="11" font-weight="bold" font-family="system-ui">Rp</text>
-            </svg>
+            <img :src="'/images/kaduin.png'" alt="Kaduin Logo" class="w-12 h-12 object-contain rounded-xl shadow-xs" />
             <div class="text-left">
-              <h1 class="text-lg font-black tracking-tight leading-none" :style="{ color: accentColor }">
-                Invoice Generator
+              <h1 class="text-lg font-black tracking-tight leading-none font-display" :style="{ color: accentColor }">
+                KADUIN
               </h1>
               <p class="text-[10px] font-semibold text-slate-400 mt-1 uppercase tracking-wider">Professional PDF · DOCX · Email</p>
             </div>
@@ -524,6 +737,23 @@ const onSendEmail = async () => {
 
         <!-- Toolbar Buttons -->
         <div class="flex flex-wrap items-center gap-2">
+          <!-- Tier Badge Button -->
+          <button 
+            @click="showUpgradeModal = true"
+            v-if="userTier === 'free'"
+            class="inline-flex items-center justify-center px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-amber-50 border border-amber-200/60 hover:bg-amber-100/60 transition-colors cursor-pointer mr-1"
+          >
+            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse mr-1.5"></span>
+            Trial: {{ Math.max(0, 10 - trialCount) }}/10 Sisa ⚡
+          </button>
+          <button 
+            @click="showUpgradeModal = true"
+            v-else
+            class="inline-flex items-center justify-center px-3.5 py-2 rounded-xl text-xs font-extrabold text-white bg-gradient-to-r from-violet-600 via-indigo-600 to-blue-600 shadow-md shadow-indigo-100 hover:opacity-95 transition-opacity cursor-pointer mr-1"
+          >
+            <span>Pro Tier ✨</span>
+          </button>
+
           <button @click="onDownloadPdf" :disabled="busy !== null" :style="{ backgroundColor: accentColor }" class="inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow-md cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50">
             <FileDown class="w-4 h-4 mr-1.5" />
             {{ busy === "pdf" ? "Membuat..." : "Unduh PDF" }}
@@ -575,7 +805,7 @@ const onSendEmail = async () => {
         </div>
 
         <!-- Branding Tab Content -->
-        <div v-if="activeTab === 'branding'" class="space-y-4">
+        <div v-if="activeTab === 'branding'" class="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
           
           <!-- Color Picker -->
           <div class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4">
@@ -604,6 +834,28 @@ const onSendEmail = async () => {
                 <input v-model="accentColor" type="text" class="w-28 h-10 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-800" />
                 <span class="text-xs text-slate-400">Atau masukkan kode HEX kustom</span>
               </div>
+            </div>
+          </div>
+
+          <!-- Font Selection -->
+          <div class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4">
+            <h2 class="text-sm font-bold flex items-center gap-2 font-display" :style="{ color: accentColor }">
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-lg bg-slate-100 text-slate-700 text-xs font-serif font-black">F</span> Typography / Font Invoice
+            </h2>
+            <p class="text-xs text-slate-400 leading-normal">Pilih gaya huruf yang cocok untuk merepresentasikan brand Anda.</p>
+            <div class="grid grid-cols-2 gap-3">
+              <button 
+                v-for="f in FONT_OPTIONS" 
+                :key="f.id" 
+                type="button"
+                @click="selectFont(f)" 
+                :style="{ fontFamily: f.css }"
+                :class="selectedFont.id === f.id ? 'border-slate-800 bg-slate-50 ring-2 ring-slate-800/10 font-bold' : 'border-slate-200 bg-white hover:bg-slate-50'"
+                class="p-4 rounded-2xl border text-left transition-all cursor-pointer flex flex-col justify-between h-20"
+              >
+                <span class="text-xs text-slate-800">{{ f.name }}</span>
+                <span class="text-xs text-slate-400 mt-1">Rp 12.500.000</span>
+              </button>
             </div>
           </div>
 
@@ -637,6 +889,36 @@ const onSendEmail = async () => {
               <div class="space-y-3 p-4 rounded-2xl border border-slate-100 bg-slate-50/50">
                 <span class="text-xs font-bold text-slate-600 block">Tanda Tangan</span>
                 <input type="file" accept="image/*" @change="onSigUpload" class="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200" />
+                <!-- CANVAS SIGNATURE DRAW PAD (Available for Free Tier) -->
+                <div>
+                  <button 
+                    type="button" 
+                    @click="showSigPad = !showSigPad" 
+                    class="w-full py-1.5 px-3 border border-slate-200 text-[10px] font-bold text-slate-700 bg-white rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    ✏️ {{ showSigPad ? 'Tutup Pad Gambar' : 'Gambar Ttd di Layar' }}
+                  </button>
+                  <div v-if="showSigPad" class="space-y-2 mt-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/20">
+                    <canvas 
+                      ref="sigCanvasRef" 
+                      width="200" 
+                      height="100" 
+                      @mousedown="startDrawing" 
+                      @mousemove="draw" 
+                      @mouseup="stopDrawing" 
+                      @mouseleave="stopDrawing"
+                      @touchstart.prevent="startDrawing"
+                      @touchmove.prevent="draw"
+                      @touchend.prevent="stopDrawing"
+                      class="border border-slate-200 rounded-xl bg-white cursor-crosshair w-full h-24 shadow-inner"
+                    ></canvas>
+                    <div class="flex gap-2">
+                      <button type="button" @click="clearCanvas" class="flex-1 py-1 text-[9px] font-bold text-slate-500 rounded-md border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer">Hapus</button>
+                      <button type="button" @click="saveCanvas" class="flex-1 py-1 text-[9px] font-bold text-white rounded-md hover:opacity-90 cursor-pointer" :style="{ backgroundColor: accentColor }">Simpan Ttd</button>
+                    </div>
+                  </div>
+                </div>
+
                 <div v-if="signature" class="space-y-3">
                   <div class="flex items-center justify-center h-24 bg-white rounded-xl border border-slate-100">
                     <img :src="signature" alt="Signature Preview" :style="{ width: signatureSize + 'px', height: (signatureSize * 0.5) + 'px', objectFit: 'contain' }" />
@@ -677,7 +959,7 @@ const onSendEmail = async () => {
         </div>
 
         <!-- Perusahaan Tab -->
-        <div v-if="activeTab === 'company'" class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4">
+        <div v-if="activeTab === 'company'" class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <h2 class="text-sm font-bold flex items-center gap-2 font-display" :style="{ color: accentColor }">
             <Building2 class="w-4 h-4" /> Informasi Perusahaan (Pengirim)
           </h2>
@@ -716,7 +998,7 @@ const onSendEmail = async () => {
         </div>
 
         <!-- Klien Tab -->
-        <div v-if="activeTab === 'client'" class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4">
+        <div v-if="activeTab === 'client'" class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <h2 class="text-sm font-bold flex items-center gap-2 font-display" :style="{ color: accentColor }">
             <User class="w-4 h-4" /> Informasi Klien (Penerima Tagihan)
           </h2>
@@ -755,7 +1037,7 @@ const onSendEmail = async () => {
         </div>
 
         <!-- Items Tab -->
-        <div v-if="activeTab === 'items'" class="space-y-4">
+        <div v-if="activeTab === 'items'" class="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <div v-for="(item, idx) in items" :key="idx" class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4 relative group">
             
             <!-- Remove Button -->
@@ -821,7 +1103,7 @@ const onSendEmail = async () => {
         </div>
 
         <!-- Pesan / Tanda Tangan Tab -->
-        <div v-if="activeTab === 'message'" class="space-y-4">
+        <div v-if="activeTab === 'message'" class="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
           
           <!-- Message Input -->
           <div class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4">
@@ -840,6 +1122,19 @@ const onSendEmail = async () => {
                 <textarea v-model="message" rows="5" class="w-full p-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800 text-slate-600 font-medium" placeholder="Tulis instruksi rekening bank pembayaran atau ucapan terima kasih..."></textarea>
               </div>
             </div>
+          </div>
+
+          <!-- QRIS dynamic payment (🔒 Coming Soon Feature) -->
+          <div class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4">
+            <div class="flex items-center justify-between">
+              <h2 class="text-sm font-bold flex items-center gap-2 font-display text-slate-500">
+                <span class="inline-flex items-center justify-center w-5 h-5 rounded-lg bg-slate-100 text-slate-500 text-[10px] font-black">QR</span> QRIS / QR Pembayaran
+              </h2>
+              <span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">COMING SOON</span>
+            </div>
+            <p class="text-xs text-slate-400 leading-normal">
+              Fitur penyertaan QR Code / QRIS pembayaran otomatis untuk invoice Anda akan segera hadir pada rilis Pro Tier mendatang.
+            </p>
           </div>
 
           <!-- Signer Details -->
@@ -864,7 +1159,7 @@ const onSendEmail = async () => {
       <!-- PREVIEW SHEET (Right Column) -->
       <section class="relative flex justify-center items-start lg:sticky lg:top-24">
         
-        <div class="w-full max-w-[660px] rounded-3xl border border-slate-100 bg-white shadow-lg flex flex-col justify-between min-h-[930px] transition-all duration-300 hover:shadow-xl text-left">
+        <div :style="{ fontFamily: selectedFont.css }" class="w-full max-w-[660px] rounded-3xl border border-slate-100 bg-white shadow-lg flex flex-col justify-between min-h-[930px] transition-all duration-300 hover:shadow-xl text-left">
           
           <!-- Top Accent Strip -->
           <div class="h-3 rounded-t-3xl transition-colors duration-500" :style="{ backgroundColor: accentColor }"></div>
@@ -878,14 +1173,14 @@ const onSendEmail = async () => {
                 <div v-if="logo" class="mb-4">
                   <img :src="logo" alt="Company Logo" :style="{ height: logoSize + 'px', width: logoSize + 'px', objectFit: 'contain' }" />
                 </div>
-                <h4 class="text-base font-extrabold text-slate-800 font-display transition-all leading-tight">{{ companyName || 'PT Nama Perusahaan' }}</h4>
+                <h4 :style="{ fontFamily: selectedFont.css }" class="text-base font-extrabold text-slate-800 transition-all leading-tight">{{ companyName || 'PT Nama Perusahaan' }}</h4>
                 <p class="text-slate-500 text-[10px] mt-1.5 whitespace-pre-line leading-relaxed">{{ companyAddress }}</p>
                 <p v-if="companyPhone" class="text-slate-500 text-[10px] mt-0.5">Telp: {{ companyPhone }}</p>
                 <p v-if="companyEmail" class="text-slate-500 text-[10px] mt-0.5">Email: {{ companyEmail }}</p>
               </div>
               
               <div class="text-right">
-                <span class="text-2xl font-black font-display tracking-tight transition-colors duration-500" :style="{ color: accentColor }">INVOICE</span>
+                <span :style="{ color: accentColor, fontFamily: selectedFont.css }" class="text-2xl font-black tracking-tight transition-colors duration-500">INVOICE</span>
                 
                 <!-- Meta Grid -->
                 <div class="mt-6 space-y-1.5 text-right flex flex-col items-end">
@@ -950,6 +1245,29 @@ const onSendEmail = async () => {
                   <span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider mb-1 block">Terbilang</span>
                   <p class="font-bold text-slate-800 text-[10px] italic leading-tight">{{ terbilang(grandTotal(items)) }}</p>
                 </div>
+                <div v-if="showPaymentQr">
+                  <!-- Free Tier Preview -->
+                  <div v-if="userTier !== 'pro'" class="mt-4 p-3 rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/20 text-left space-y-1.5 max-w-[240px]">
+                    <div class="flex items-center gap-1.5 text-indigo-700 font-bold text-[9px]">
+                      <span>🔒</span> QRIS Pembayaran (Pro Feature)
+                    </div>
+                    <p class="text-[8px] text-indigo-500 leading-normal">Aktifkan Pro Tier untuk melampirkan QR code pembayaran otomatis pada invoice ini.</p>
+                  </div>
+                  <!-- Pro Tier Preview -->
+                  <div v-else class="mt-4 space-y-1.5 text-left max-w-[240px]">
+                    <span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider block">Scan QRIS untuk Bayar</span>
+                    <div class="p-2 bg-white border border-slate-200 rounded-2xl w-28 h-28 flex items-center justify-center">
+                      <img 
+                        :src="`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent('Transfer Bank ' + paymentQrBank + ' No. Rek: ' + paymentQrAccount + ' a.n ' + paymentQrHolder + ' Total: Rp ' + fmt(grandTotal(items)))}`" 
+                        alt="Payment QR" 
+                        class="w-full h-full object-contain"
+                      />
+                    </div>
+                    <span class="text-[8.5px] text-slate-400 block font-semibold leading-tight animate-fade-in">
+                      {{ paymentQrBank }} - {{ paymentQrAccount }}<br/>a.n. {{ paymentQrHolder }}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               <!-- Right side totals sheet -->
@@ -993,7 +1311,7 @@ const onSendEmail = async () => {
           <!-- Bottom Accent Strip -->
           <div class="px-8 py-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-semibold rounded-b-3xl">
             <span>Terima kasih atas kerja samanya.</span>
-            <span class="font-extrabold text-slate-600">KAMIDUKUNG Invoice</span>
+            <span class="font-extrabold text-slate-600">KADUIN Invoice</span>
           </div>
 
         </div>
@@ -1050,6 +1368,106 @@ const onSendEmail = async () => {
 
       </div>
     </div>
+
+    <!-- UPGRADE / PLAN SWITCHER MODAL -->
+    <div v-if="showUpgradeModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <!-- Backdrop overlay -->
+      <div @click="showUpgradeModal = false" class="absolute inset-0 bg-slate-900/60 backdrop-blur-xs"></div>
+      
+      <!-- Dialog container -->
+      <div class="relative w-full max-w-lg rounded-3xl bg-white border border-slate-100 p-8 shadow-2xl space-y-6 text-left animate-in fade-in zoom-in-95 duration-200">
+        
+        <div class="flex items-center justify-between">
+          <h3 class="text-lg font-black text-slate-800 font-display flex items-center gap-2">
+            <Sparkles class="w-5 h-5 text-indigo-600 animate-pulse" />
+            Pilih Paket Akun Anda
+          </h3>
+          <button @click="showUpgradeModal = false" class="p-1.5 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer">
+            <X class="w-5 h-5" />
+          </button>
+        </div>
+
+        <p class="text-xs text-slate-500 leading-normal">
+          Sesuaikan paket langganan Anda untuk membuka semua fitur premium pembuat invoice.
+        </p>
+
+        <!-- Plans Cards Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          
+          <!-- Free Tier Card -->
+          <div 
+            @click="switchTier('free')"
+            :class="userTier === 'free' ? 'border-amber-400 bg-amber-50/20 ring-2 ring-amber-400/10' : 'border-slate-100 bg-slate-50/50 hover:bg-slate-50'"
+            class="p-5 rounded-2xl border text-left cursor-pointer transition-all flex flex-col justify-between"
+          >
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold text-slate-700">Free Trial</span>
+                <span v-if="userTier === 'free'" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">AKTIF</span>
+              </div>
+              <p class="text-sm font-black text-slate-800 font-display">Rp 0</p>
+              <ul class="text-[10.5px] text-slate-500 mt-4 space-y-2">
+                <li class="flex items-center gap-1.5">
+                  <Check class="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span>Maksimal 10x download</span>
+                </li>
+                <li class="flex items-center gap-1.5 text-slate-400 line-through">
+                  <X class="w-3.5 h-3.5 text-slate-300 shrink-0" />
+                  <span>Kirim email instan</span>
+                </li>
+              </ul>
+            </div>
+            <div class="mt-6">
+              <span class="text-[10px] font-bold text-slate-500 block font-display">Digunakan: {{ trialCount }}/10</span>
+            </div>
+          </div>
+
+          <!-- Pro Tier Card -->
+          <div 
+            @click="switchTier('pro')"
+            :class="userTier === 'pro' ? 'border-indigo-500 bg-indigo-50/20 ring-2 ring-indigo-500/10' : 'border-slate-100 bg-slate-50/50 hover:bg-slate-50'"
+            class="p-5 rounded-2xl border text-left cursor-pointer transition-all flex flex-col justify-between"
+          >
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold text-slate-700">Pro Tier</span>
+                <span v-if="userTier === 'pro'" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">AKTIF</span>
+                <span v-else class="text-[9px] font-black px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">SOON / COBA</span>
+              </div>
+              <p class="text-sm font-black text-slate-800 font-display">Rp 25.000<span class="text-[10px] text-slate-400 font-normal">/bulan</span></p>
+              <ul class="text-[10.5px] text-slate-500 mt-4 space-y-2">
+                <li class="flex items-center gap-1.5">
+                  <Check class="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                  <span>Unlimited download</span>
+                </li>
+                <li class="flex items-center gap-1.5">
+                  <Check class="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                  <span>Kirim email via Resend API</span>
+                </li>
+              </ul>
+            </div>
+            <div class="mt-6">
+              <button 
+                disabled
+                class="w-full py-2.5 rounded-xl text-xs font-bold text-slate-400 bg-slate-100 transition-all text-center cursor-not-allowed"
+              >
+                Segera Hadir (Belum Dibuka)
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="flex justify-end pt-2">
+          <button @click="showUpgradeModal = false" :style="{ backgroundColor: accentColor }" class="inline-flex items-center justify-center px-6 py-2.5 rounded-xl text-xs font-bold text-white shadow-md cursor-pointer hover:opacity-95 transition-opacity">
+            Selesai
+          </button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- PAYMENT SIMULATION DISABLED -->
 
   </div>
 </template>
