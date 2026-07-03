@@ -107,7 +107,7 @@ const faqs = [
         
         <!-- Logo -->
         <a href="#" class="flex items-center group">
-          <img :src="'/images/kaduin.png'" alt="Kaduin Logo" class="h-11 md:h-14 w-auto object-contain rounded-2xl group-hover:scale-105 transition-transform duration-300" />
+          <img :src="'/images/kaduin.png'" alt="Kaduin Logo" class="h-7 md:h-8.5 w-auto object-contain group-hover:scale-105 transition-transform duration-300" />
         </a>
 
         <!-- Desktop Nav -->
