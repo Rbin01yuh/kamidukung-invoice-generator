@@ -725,13 +725,7 @@ const onSendEmail = async () => {
             <ArrowLeft class="w-5 h-5 text-slate-600" />
           </NuxtLink>
           <div class="flex items-center gap-3">
-            <img :src="'/images/kaduin.png'" alt="Kaduin Logo" class="w-12 h-12 object-contain rounded-xl shadow-xs" />
-            <div class="text-left">
-              <h1 class="text-lg font-black tracking-tight leading-none font-display" :style="{ color: accentColor }">
-                KADUIN
-              </h1>
-              <p class="text-[10px] font-semibold text-slate-400 mt-1 uppercase tracking-wider">Professional PDF · DOCX · Email</p>
-            </div>
+            <img :src="'/images/kaduin.png'" alt="Kaduin Logo" class="h-10 md:h-12 w-auto object-contain rounded-xl" />
           </div>
         </div>
 

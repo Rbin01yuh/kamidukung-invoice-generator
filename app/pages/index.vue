@@ -106,12 +106,8 @@ const faqs = [
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between">
         
         <!-- Logo -->
-        <a href="#" class="flex items-center gap-3 group">
-          <img :src="'/images/kaduin.png'" alt="Kaduin Logo" class="w-14 h-14 object-contain rounded-2xl shadow-md group-hover:scale-105 transition-transform duration-300" />
-          <div class="flex flex-col">
-            <span class="text-xl font-black tracking-tight text-[#1F3A5F] font-display leading-none">KADUIN</span>
-            <span class="text-[10px] font-extrabold tracking-widest text-[#10B981] uppercase mt-0.5">INVOICE</span>
-          </div>
+        <a href="#" class="flex items-center group">
+          <img :src="'/images/kaduin.png'" alt="Kaduin Logo" class="h-11 md:h-14 w-auto object-contain rounded-2xl group-hover:scale-105 transition-transform duration-300" />
         </a>
 
         <!-- Desktop Nav -->
