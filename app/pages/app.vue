@@ -339,7 +339,7 @@ const handlePayment = () => {
     showUpgradeModal.value = false
     userTier.value = 'pro'
     localStorage.setItem('user_tier', 'pro')
-    toast.success("Pembayaran Sukses!", { description: "Akun Anda telah berhasil ditingkatkan ke Pro Tier." })
+    toast.success(t.value.toastPaymentSuccess || "Simulation payment completed! Account is now Pro.")
   }, 1800)
 }
 
@@ -416,7 +416,7 @@ const saveCanvas = () => {
   const canvas = sigCanvasRef.value
   if (!canvas) return
   signature.value = canvas.toDataURL('image/png')
-  toast.success("Tanda tangan berhasil disimpan dari pad!")
+  toast.success(t.value.signaturePadSavedToast || "Signature successfully saved to canvas!")
   showSigPad.value = false
 }
 
@@ -517,7 +517,7 @@ const removeItem = (index) => {
 const onDownloadPdf = async () => {
   if (userTier.value === 'free' && trialCount.value >= 10) {
     showUpgradeModal.value = true
-    toast.error("Batas trial terlampaui!", { description: "Silakan tingkatkan ke Pro Tier untuk download tanpa batas." })
+    toast.error(t.value.toastTrialExceeded || "Trial limit exceeded! Please upgrade to Pro Tier.", { description: t.value.proTierLockedDesc })
     return
   }
   busy.value = "pdf"
@@ -533,7 +533,7 @@ const onDownloadPdf = async () => {
       paymentQrDataUrl: qrDataUrl
     })
     downloadPdf(blob, `${fileBase.value}.pdf`)
-    toast.success("PDF berhasil diunduh")
+    toast.success(t.value.toastPdfSuccess || "PDF downloaded successfully!")
     if (userTier.value === 'free') {
       try {
         const response = await fetch('/api/increment-trial', { method: 'POST' })
@@ -549,7 +549,7 @@ const onDownloadPdf = async () => {
     }
   } catch (e) {
     console.error(e)
-    toast.error("Gagal membuat PDF")
+    toast.error(t.value.toastPdfError || "Failed to compile PDF document")
   } finally {
     busy.value = null
   }
@@ -559,7 +559,7 @@ const onDownloadPdf = async () => {
 const onDownloadDocx = async () => {
   if (userTier.value === 'free' && trialCount.value >= 10) {
     showUpgradeModal.value = true
-    toast.error("Batas trial terlampaui!", { description: "Silakan tingkatkan ke Pro Tier untuk download tanpa batas." })
+    toast.error(t.value.toastTrialExceeded || "Trial limit exceeded! Please upgrade to Pro Tier.", { description: t.value.proTierLockedDesc })
     return
   }
   busy.value = "docx"
@@ -575,7 +575,7 @@ const onDownloadDocx = async () => {
       paymentQrDataUrl: qrDataUrl
     })
     downloadDocx(blob, `${fileBase.value}.docx`)
-    toast.success("DOCX berhasil diunduh")
+    toast.success(t.value.toastDocxSuccess || "Word (DOCX) downloaded successfully!")
     if (userTier.value === 'free') {
       try {
         const response = await fetch('/api/increment-trial', { method: 'POST' })
@@ -591,7 +591,7 @@ const onDownloadDocx = async () => {
     }
   } catch (e) {
     console.error(e)
-    toast.error("Gagal membuat DOCX")
+    toast.error(t.value.toastDocxError || "Failed to compile DOCX document")
   } finally {
     busy.value = null
   }
@@ -600,7 +600,7 @@ const onDownloadDocx = async () => {
 // Save Resend API Settings
 const onSaveSettings = () => {
   setStoredResendKey(resendKeyInput.value)
-  savedKeyNotice.value = resendKeyInput.value.trim() ? "✓ API Key tersimpan!" : "API Key dihapus."
+  savedKeyNotice.value = resendKeyInput.value.trim() ? (t.value.toastSettingsSaved || "✓ API Key saved!") : (t.value.toastSettingsDeleted || "API Key removed.")
   setTimeout(() => {
     savedKeyNotice.value = ""
   }, 3000)
@@ -610,11 +610,11 @@ const onSaveSettings = () => {
 const onSendEmail = async () => {
   if (userTier.value === 'free') {
     showUpgradeModal.value = true
-    toast.error("Kirim email adalah fitur Pro!", { description: "Silakan tingkatkan ke Pro Tier untuk menggunakan fitur kirim email." })
+    toast.error(t.value.toastProFeature || "This utility requires Pro Tier!", { description: t.value.proTierLockedDesc })
     return
   }
   if (!clientEmail.value) {
-    toast.error("Email klien wajib diisi")
+    toast.error(currentLang.value === 'id' ? "Email klien wajib diisi" : `${t.value.clientEmailLabel || 'Client email'} is required`)
     return
   }
   busy.value = "email"
@@ -710,8 +710,8 @@ const onSendEmail = async () => {
     }
 
     if (result.success) {
-      toast.success("Email berhasil dikirim!", {
-        description: `Invoice ${reference.value} + PDF & DOCX terkirim ke ${clientEmail.value}`
+      toast.success(t.value.toastEmailSuccess || "Email sent successfully!", {
+        description: `${t.value.previewInvoiceTitle} ${reference.value} + PDF & DOCX -> ${clientEmail.value}`
       })
     } else {
       // Step 3: Secondary Fallback - download files & open Gmail compose
@@ -727,18 +727,18 @@ const onSendEmail = async () => {
 
       const noKey = !getStoredResendKey()
       toast.info(
-        noKey ? "Gmail dibuka — file sudah diunduh" : "Gmail dibuka sebagai cadangan",
+        noKey ? t.value.toastEmailOpenGmail : "Gmail opened",
         {
           description: noKey
-            ? "Untuk pengiriman otomatis, silakan masukkan Resend API Key di Settings ⚙. Lampirkan PDF/Word secara manual di Gmail."
-            : `Resend error: ${result.error}. File PDF & DOCX berhasil diunduh, lampirkan manual di Gmail.`,
+            ? t.value.toastEmailOpenGmailDetails
+            : `Resend error: ${result.error}. PDF & DOCX downloaded.`,
           duration: 10000
         }
       )
     }
   } catch (e) {
     console.error(e)
-    toast.error("Gagal mengirim email — coba lagi")
+    toast.error(t.value.toastEmailError || "Failed to send email — try again")
   } finally {
     busy.value = null
   }
