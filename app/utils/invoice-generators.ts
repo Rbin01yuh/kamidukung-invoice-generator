@@ -16,6 +16,7 @@ import {
 } from "docx";
 import FileSaver from "file-saver";
 const { saveAs } = FileSaver;
+import { translations, numberToWords, type LanguageCode } from "./translations";
 
 export interface InvoiceItem {
   product: string;
@@ -50,6 +51,7 @@ export interface InvoiceData {
   fontId?: string;
   fontName?: string;
   paymentQrDataUrl?: string;
+  lang?: LanguageCode;
 }
 
 export const fmt = (n: number) =>
@@ -71,52 +73,9 @@ export const totalDiscount = (items: InvoiceItem[]) =>
 export const grandTotal = (items: InvoiceItem[]) =>
   items.reduce((s, it) => s + lineTotal(it), 0);
 
-// --- Terbilang (Indonesian) ---
-const satuan = [
-  "",
-  "Satu",
-  "Dua",
-  "Tiga",
-  "Empat",
-  "Lima",
-  "Enam",
-  "Tujuh",
-  "Delapan",
-  "Sembilan",
-  "Sepuluh",
-  "Sebelas",
-];
-function terbilangNum(n: number): string {
-  n = Math.floor(n);
-  if (n < 12) return satuan[n] || "";
-  if (n < 20) return terbilangNum(n - 10) + " Belas";
-  if (n < 100)
-    return terbilangNum(Math.floor(n / 10)) + " Puluh" + (n % 10 ? " " + terbilangNum(n % 10) : "");
-  if (n < 200) return "Seratus" + (n - 100 ? " " + terbilangNum(n - 100) : "");
-  if (n < 1000)
-    return terbilangNum(Math.floor(n / 100)) + " Ratus" + (n % 100 ? " " + terbilangNum(n % 100) : "");
-  if (n < 2000) return "Seribu" + (n - 1000 ? " " + terbilangNum(n - 1000) : "");
-  if (n < 1_000_000)
-    return (
-      terbilangNum(Math.floor(n / 1000)) +
-      " Ribu" +
-      (n % 1000 ? " " + terbilangNum(n % 1000) : "")
-    );
-  if (n < 1_000_000_000)
-    return (
-      terbilangNum(Math.floor(n / 1_000_000)) +
-      " Juta" +
-      (n % 1_000_000 ? " " + terbilangNum(n % 1_000_000) : "")
-    );
-  return (
-    terbilangNum(Math.floor(n / 1_000_000_000)) +
-    " Miliar" +
-    (n % 1_000_000_000 ? " " + terbilangNum(n % 1_000_000_000) : "")
-  );
-}
+// --- Terbilang Wrapper ---
 export const terbilang = (n: number) => {
-  const t = terbilangNum(n).trim();
-  return (t || "Nol") + " Rupiah";
+  return numberToWords(n, "id");
 };
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -139,6 +98,8 @@ export async function generatePdf(data: InvoiceData): Promise<Blob> {
   const margin = 40;
   const [r, g, b] = hexToRgb(data.accentColor);
   const pdfFont = data.fontId || "helvetica";
+  const lang = data.lang || "id";
+  const tSet = translations[lang];
 
   // Logo (no text next to it)
   const logoSize = data.logoSize ?? 60;
@@ -154,7 +115,7 @@ export async function generatePdf(data: InvoiceData): Promise<Blob> {
   doc.setFontSize(28);
   doc.setFont(pdfFont, "bold");
   doc.setTextColor(r, g, b);
-  doc.text("INVOICE", pageW - margin, 60, { align: "right" });
+  doc.text(tSet.previewInvoiceTitle, pageW - margin, 60, { align: "right" });
 
   // Reference / dates
   doc.setFontSize(10);
@@ -164,9 +125,9 @@ export async function generatePdf(data: InvoiceData): Promise<Blob> {
   const valX = pageW - margin;
   let y = 95;
   const rows: [string, string][] = [
-    ["Referensi", data.reference],
-    ["Tanggal", data.date],
-    ["Tgl. Jatuh Tempo", data.dueDate],
+    [tSet.referenceNo, data.reference],
+    [tSet.invoiceDate, data.date],
+    [tSet.invoiceDueDate, data.dueDate],
   ];
   rows.forEach(([k, v]) => {
     doc.text(k, labelX, y, { align: "right" });
@@ -185,8 +146,8 @@ export async function generatePdf(data: InvoiceData): Promise<Blob> {
   doc.setFont(pdfFont, "bold");
   doc.setFontSize(11);
   doc.setTextColor(r, g, b);
-  doc.text("Informasi Perusahaan", margin, secY);
-  doc.text("Tagihan Kepada", pageW / 2 + 10, secY);
+  doc.text(tSet.companyInfoTitle, margin, secY);
+  doc.text(tSet.clientInfoTitle, pageW / 2 + 10, secY);
 
   doc.setDrawColor(r, g, b);
   doc.setLineWidth(0.8);
@@ -247,7 +208,7 @@ export async function generatePdf(data: InvoiceData): Promise<Blob> {
   // Items table
   autoTable(doc, {
     startY: tableStartY,
-    head: [["Produk", "Deskripsi", "Kuantitas", "Harga", "Diskon", "Pajak", "Jumlah"]],
+    head: [[tSet.productNameLabel, tSet.productDescLabel, tSet.quantityLabel, tSet.unitPriceLabel, tSet.discountLabel, tSet.taxLabel, tSet.previewTotal.replace(":", "")]],
     body: data.items.map((it) => [
       it.product,
       it.description,
@@ -300,7 +261,7 @@ export async function generatePdf(data: InvoiceData): Promise<Blob> {
   doc.setFont(pdfFont, "bold");
   doc.setTextColor(r, g, b);
   doc.setFontSize(11);
-  doc.text("Pesan", margin, bottomY);
+  doc.text(tSet.notesTitle, margin, bottomY);
   doc.setDrawColor(r, g, b);
   doc.line(margin, bottomY + 6, pageW / 2 - 20, bottomY + 6);
 
@@ -310,9 +271,9 @@ export async function generatePdf(data: InvoiceData): Promise<Blob> {
   doc.text(msgLines, margin, bottomY + 24);
 
   const terbilangY = bottomY + 24 + msgLines.length * 12 + 16;
-  doc.text("Terbilang", margin, terbilangY);
+  doc.text(tSet.previewTerbilang, margin, terbilangY);
   doc.setFont(pdfFont, "bold");
-  doc.text(terbilang(grandTotal(data.items)), margin, terbilangY + 14);
+  doc.text(numberToWords(grandTotal(data.items), lang), margin, terbilangY + 14);
 
   // Draw QR code under the Terbilang text
   if (data.paymentQrDataUrl) {
@@ -321,7 +282,7 @@ export async function generatePdf(data: InvoiceData): Promise<Blob> {
       doc.setFont(pdfFont, "bold");
       doc.setFontSize(10);
       doc.setTextColor(r, g, b);
-      doc.text("Scan QRIS untuk Bayar:", margin, qrY);
+      doc.text(tSet.previewQrisScan + ":", margin, qrY);
       doc.addImage(data.paymentQrDataUrl, "PNG", margin, qrY + 8, 70, 70);
     } catch {
       /* noop */
@@ -335,19 +296,19 @@ export async function generatePdf(data: InvoiceData): Promise<Blob> {
   doc.setFont(pdfFont, "bold");
   doc.setTextColor(40, 40, 40);
   doc.setFontSize(11);
-  doc.text("Subtotal", totalsX, ty);
+  doc.text(tSet.previewSubtotal.replace(":", ""), totalsX, ty);
   doc.setFont(pdfFont, "normal");
   doc.text(`Rp ${fmt(subtotal(data.items))}`, totalsValX, ty, { align: "right" });
   ty += 22;
   doc.setFont(pdfFont, "bold");
-  doc.text("Total Diskon", totalsX, ty);
+  doc.text(tSet.previewDiscount.replace(":", ""), totalsX, ty);
   doc.setFont(pdfFont, "normal");
   doc.text(`(Rp ${fmt(totalDiscount(data.items))})`, totalsValX, ty, { align: "right" });
   ty += 28;
   doc.setFont(pdfFont, "bold");
   doc.setFontSize(14);
   doc.setTextColor(r, g, b);
-  doc.text("Total", totalsX, ty);
+  doc.text(tSet.previewTotal.replace(":", ""), totalsX, ty);
   doc.text(`Rp ${fmt(grandTotal(data.items))}`, totalsValX, ty, { align: "right" });
 
   // Signature
@@ -355,7 +316,7 @@ export async function generatePdf(data: InvoiceData): Promise<Blob> {
   doc.setFont(pdfFont, "bold");
   doc.setFontSize(10);
   doc.setTextColor(60, 60, 60);
-  doc.text(data.signerTitle || "Dengan Hormat,", pageW - margin - 100, sigY, { align: "center" });
+  doc.text(data.signerTitle || tSet.previewSignerDefault, pageW - margin - 100, sigY, { align: "center" });
   const sigW = data.signatureSize ?? 120;
   const sigH = Math.round(sigW * 0.5);
   if (data.signatureDataUrl) {
@@ -406,6 +367,8 @@ export async function generateDocx(data: InvoiceData): Promise<Blob> {
   const accent = colorHexNoHash(data.accentColor);
   const muted = "555555";
   const fontName = data.fontName || "Arial";
+  const lang = data.lang || "id";
+  const tSet = translations[lang];
 
   const noBorder = {
     top: { style: BorderStyle.NONE, size: 0, color: "FFFFFF" },
@@ -447,26 +410,26 @@ export async function generateDocx(data: InvoiceData): Promise<Blob> {
             children: [
               new Paragraph({
                 alignment: AlignmentType.RIGHT,
-                children: [new TextRun({ text: "INVOICE", bold: true, color: accent, size: 56 })],
+                children: [new TextRun({ text: tSet.previewInvoiceTitle, bold: true, color: accent, size: 56 })],
               }),
               new Paragraph({
                 alignment: AlignmentType.RIGHT,
                 children: [
-                  new TextRun({ text: "Referensi   ", color: muted }),
+                  new TextRun({ text: tSet.referenceNo + "   ", color: muted }),
                   new TextRun({ text: data.reference, bold: true }),
                 ],
               }),
               new Paragraph({
                 alignment: AlignmentType.RIGHT,
                 children: [
-                  new TextRun({ text: "Tanggal   ", color: muted }),
+                  new TextRun({ text: tSet.invoiceDate + "   ", color: muted }),
                   new TextRun({ text: data.date, bold: true }),
                 ],
               }),
               new Paragraph({
                 alignment: AlignmentType.RIGHT,
                 children: [
-                  new TextRun({ text: "Tgl. Jatuh Tempo   ", color: muted }),
+                  new TextRun({ text: tSet.invoiceDueDate + "   ", color: muted }),
                   new TextRun({ text: data.dueDate, bold: true }),
                 ],
               }),
@@ -500,8 +463,8 @@ export async function generateDocx(data: InvoiceData): Promise<Blob> {
     rows: [
       new TableRow({
         children: [
-          infoCell("Informasi Perusahaan", data.companyName, data.companyAddress, data.companyPhone, data.companyEmail),
-          infoCell("Tagihan Kepada", data.clientName, data.clientAddress, data.clientPhone, data.clientEmail),
+          infoCell(tSet.companyInfoTitle, data.companyName, data.companyAddress, data.companyPhone, data.companyEmail),
+          infoCell(tSet.clientInfoTitle, data.clientName, data.clientAddress, data.clientPhone, data.clientEmail),
         ],
       }),
     ],
@@ -536,13 +499,13 @@ export async function generateDocx(data: InvoiceData): Promise<Blob> {
     rows: [
       new TableRow({
         children: [
-          itemHeaderCell("Produk", widths[0]),
-          itemHeaderCell("Deskripsi", widths[1]),
-          itemHeaderCell("Kuantitas", widths[2], AlignmentType.CENTER),
-          itemHeaderCell("Harga", widths[3], AlignmentType.RIGHT),
-          itemHeaderCell("Diskon", widths[4], AlignmentType.RIGHT),
-          itemHeaderCell("Pajak", widths[5], AlignmentType.RIGHT),
-          itemHeaderCell("Jumlah", widths[6], AlignmentType.RIGHT),
+          itemHeaderCell(tSet.productNameLabel, widths[0]),
+          itemHeaderCell(tSet.productDescLabel, widths[1]),
+          itemHeaderCell(tSet.quantityLabel, widths[2], AlignmentType.CENTER),
+          itemHeaderCell(tSet.unitPriceLabel, widths[3], AlignmentType.RIGHT),
+          itemHeaderCell(tSet.discountLabel, widths[4], AlignmentType.RIGHT),
+          itemHeaderCell(tSet.taxLabel, widths[5], AlignmentType.RIGHT),
+          itemHeaderCell(tSet.previewTotal.replace(":", ""), widths[6], AlignmentType.RIGHT),
         ],
       }),
       ...data.items.map(
@@ -565,14 +528,14 @@ export async function generateDocx(data: InvoiceData): Promise<Blob> {
   // Totals + message side by side
   const messageChildren: Paragraph[] = [
     new Paragraph({
-      children: [new TextRun({ text: "Pesan", bold: true, color: accent, size: 22 })],
+      children: [new TextRun({ text: tSet.notesTitle, bold: true, color: accent, size: 22 })],
       border: { bottom: { style: BorderStyle.SINGLE, size: 6, color: accent, space: 4 } },
     }),
     new Paragraph({ children: [new TextRun({ text: "" })] }),
     new Paragraph({ children: [new TextRun({ text: data.message, color: muted })] }),
     new Paragraph({ children: [new TextRun({ text: "" })] }),
-    new Paragraph({ children: [new TextRun({ text: "Terbilang", color: muted })] }),
-    new Paragraph({ children: [new TextRun({ text: terbilang(grandTotal(data.items)), bold: true })] }),
+    new Paragraph({ children: [new TextRun({ text: tSet.previewTerbilang, color: muted })] }),
+    new Paragraph({ children: [new TextRun({ text: numberToWords(grandTotal(data.items), lang), bold: true })] }),
   ];
 
   if (data.paymentQrDataUrl) {
@@ -580,7 +543,7 @@ export async function generateDocx(data: InvoiceData): Promise<Blob> {
       messageChildren.push(new Paragraph({ children: [new TextRun({ text: "" })] }));
       messageChildren.push(
         new Paragraph({
-          children: [new TextRun({ text: "Scan QRIS untuk Bayar:", bold: true, color: accent, size: 22 })],
+          children: [new TextRun({ text: tSet.previewQrisScan + ":", bold: true, color: accent, size: 22 })],
         })
       );
       messageChildren.push(
@@ -639,9 +602,9 @@ export async function generateDocx(data: InvoiceData): Promise<Blob> {
         width: { size: 4500, type: WidthType.DXA },
         columnWidths: [2500, 2000],
         rows: [
-          totalsRow("Subtotal", `Rp ${fmt(subtotal(data.items))}`),
-          totalsRow("Total Diskon", `(Rp ${fmt(totalDiscount(data.items))})`),
-          totalsRow("Total", `Rp ${fmt(grandTotal(data.items))}`, true, true),
+          totalsRow(tSet.previewSubtotal.replace(":", ""), `Rp ${fmt(subtotal(data.items))}`),
+          totalsRow(tSet.previewDiscount.replace(":", ""), `(Rp ${fmt(totalDiscount(data.items))})`),
+          totalsRow(tSet.previewTotal.replace(":", ""), `Rp ${fmt(grandTotal(data.items))}`, true, true),
         ],
       }),
     ],
@@ -695,7 +658,7 @@ export async function generateDocx(data: InvoiceData): Promise<Blob> {
           new Paragraph({ children: [new TextRun({ text: "" })] }),
           bottomTable,
           new Paragraph({ children: [new TextRun({ text: "" })] }),
-          new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: data.signerTitle || "Dengan Hormat,", bold: true })] }),
+          new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: data.signerTitle || tSet.previewSignerDefault, bold: true })] }),
           new Paragraph({ alignment: AlignmentType.RIGHT, children: sigRuns.length ? sigRuns : [new TextRun({ text: "" })] }),
           new Paragraph({
             alignment: AlignmentType.RIGHT,

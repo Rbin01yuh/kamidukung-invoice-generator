@@ -17,7 +17,9 @@ import {
   Settings,
   X,
   Sparkles,
-  ArrowLeft
+  ArrowLeft,
+  Eye,
+  EyeOff
 } from '@lucide/vue'
 
 // Import utilities
@@ -39,6 +41,8 @@ import {
   setStoredResendKey,
   sendEmailViaResendClient
 } from '~/utils/email-config'
+
+import { translations, loadLanguage, saveLanguage } from '~/utils/translations'
 
 // Toast Notification System
 const toasts = ref([])
@@ -207,6 +211,35 @@ const signature = ref(undefined)
 const logoSize = ref(60)
 const signatureSize = ref(120)
 
+const currentLang = ref('id')
+const t = computed(() => translations[currentLang.value])
+const langMenuOpen = ref(false)
+
+const changeLanguage = (langCode) => {
+  currentLang.value = langCode
+  saveLanguage(langCode)
+}
+
+const getLangFlag = (code) => {
+  const flags = {
+    id: '🇮🇩', en: '🇺🇸', zh: '🇨🇳', ja: '🇯🇵', ko: '🇰🇷',
+    es: '🇪🇸', fr: '🇫🇷', de: '🇩🇪', it: '🇮🇹', pt: '🇵🇹',
+    ru: '🇷🇺', ar: '🇸🇦', hi: '🇮🇳', tr: '🇹🇷', vi: '🇻🇳',
+    th: '🇹🇭', nl: '🇳🇱', pl: '🇵🇱', sv: '🇸🇪', tl: '🇵🇭', ms: '🇲🇾'
+  }
+  return flags[code] || '🌐'
+}
+
+const getLangName = (code) => {
+  const names = {
+    id: 'Indonesia', en: 'English', zh: '中文', ja: '日本語', ko: '한국어',
+    es: 'Español', fr: 'Français', de: 'Deutsch', it: 'Italiano', pt: 'Português',
+    ru: 'Русский', ar: 'العربية', hi: 'हिन्दी', tr: 'Türkçe', vi: 'Tiếng Việt',
+    th: 'ไทย', nl: 'Nederlands', pl: 'Polski', sv: 'Svenska', tl: 'Filipino', ms: 'Melayu'
+  }
+  return names[code] || code
+}
+
 const reference = ref('INV/2026/001')
 const date = ref(todayIso())
 const dueDate = ref(plusDaysIso(30))
@@ -238,8 +271,33 @@ const signerTitle = ref('a.n. KADUIN')
 
 const busy = ref(null)
 const showSettings = ref(false)
+const showApiKey = ref(false)
 const resendKeyInput = ref('')
 const savedKeyNotice = ref('')
+
+const resetForm = () => {
+  if (confirm(t.value.resetConfirm)) {
+    reference.value = 'INV/' + new Date().getFullYear() + '/001'
+    date.value = todayIso()
+    dueDate.value = plusDaysIso(30)
+    companyName.value = ''
+    companyAddress.value = ''
+    companyPhone.value = ''
+    companyEmail.value = ''
+    clientName.value = ''
+    clientAddress.value = ''
+    clientPhone.value = ''
+    clientEmail.value = ''
+    items.value = [emptyItem()]
+    message.value = ''
+    signerName.value = ''
+    signerTitle.value = ''
+    logo.value = undefined
+    signature.value = undefined
+    showPaymentQr.value = false
+    toast.success(t.value.toastResetSuccess)
+  }
+}
 
 // Fonts list
 const FONT_OPTIONS = [
@@ -266,7 +324,7 @@ const selectedPaymentMethod = ref('qris')
 
 const switchTier = (tier) => {
   if (tier === 'pro') {
-    toast.info("Pro Tier Segera Hadir!", { description: "Layanan pembayaran belum dibuka saat ini." })
+    showCheckoutModal.value = true
     return
   }
   userTier.value = tier
@@ -379,6 +437,7 @@ const getQrCodeDataUrl = async (text) => {
 }
 
 onMounted(async () => {
+  currentLang.value = loadLanguage()
   resendKeyInput.value = getStoredResendKey()
   
   // Load selected font
@@ -389,7 +448,8 @@ onMounted(async () => {
   }
 
   // Load user tier and trial count
-  userTier.value = localStorage.getItem('user_tier') || 'free'
+  userTier.value = 'free'
+  localStorage.setItem('user_tier', 'free')
   trialCount.value = parseInt(localStorage.getItem('trial_count') || '0', 10)
 
   // Sync with IP trial status from server
@@ -419,6 +479,7 @@ const invoiceData = computed(() => ({
   signatureSize: signatureSize.value,
   fontId: selectedFont.value.pdf,
   fontName: selectedFont.value.docx,
+  lang: currentLang.value,
 }))
 
 const fileBase = computed(() => {
@@ -738,7 +799,7 @@ const onSendEmail = async () => {
             class="inline-flex items-center justify-center px-3.5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-amber-50 border border-amber-200/60 hover:bg-amber-100/60 transition-colors cursor-pointer mr-1"
           >
             <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse mr-1.5"></span>
-            Trial: {{ Math.max(0, 10 - trialCount) }}/10 Sisa ⚡
+            {{ t.trialRemaining }}: {{ Math.max(0, 10 - trialCount) }}/10 ⚡
           </button>
           <button 
             @click="showUpgradeModal = true"
@@ -748,17 +809,31 @@ const onSendEmail = async () => {
             <span>Pro Tier ✨</span>
           </button>
 
+          <!-- Language Selector -->
+          <div class="relative inline-block text-left mr-1">
+            <button @click="langMenuOpen = !langMenuOpen" class="p-2.5 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer flex items-center gap-1" title="Change Language">
+              <span>🌐</span>
+              <span class="text-[11px] font-extrabold uppercase">{{ currentLang }}</span>
+            </button>
+            <div v-if="langMenuOpen" class="absolute right-0 mt-2 w-40 max-h-64 overflow-y-auto rounded-xl bg-white border border-[#1F3A5F]/15 shadow-xl py-1 z-[100]">
+              <button v-for="l in ['id', 'en', 'zh', 'ja', 'ko', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ar', 'hi', 'tr', 'vi', 'th', 'nl', 'pl', 'sv', 'tl', 'ms']" :key="l" @click="changeLanguage(l); langMenuOpen = false" class="flex items-center w-full px-3 py-1.5 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer">
+                <span class="mr-2">{{ getLangFlag(l) }}</span>
+                <span>{{ getLangName(l) }}</span>
+              </button>
+            </div>
+          </div>
+
           <button @click="onDownloadPdf" :disabled="busy !== null" :style="{ backgroundColor: accentColor }" class="inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-xs font-bold text-white shadow-md cursor-pointer hover:opacity-90 transition-opacity disabled:opacity-50">
             <FileDown class="w-4 h-4 mr-1.5" />
-            {{ busy === "pdf" ? "Membuat..." : "Unduh PDF" }}
+            {{ busy === "pdf" ? t.generating : t.downloadPdf }}
           </button>
           <button @click="onDownloadDocx" :disabled="busy !== null" class="inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 cursor-pointer disabled:opacity-50 transition-colors">
             <FileText class="w-4 h-4 mr-1.5" />
-            {{ busy === "docx" ? "Membuat..." : "Unduh Word" }}
+            {{ busy === "docx" ? t.generating : t.downloadWord }}
           </button>
           <button @click="onSendEmail" :disabled="busy !== null" class="inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 cursor-pointer disabled:opacity-50 transition-colors">
             <Send class="w-4 h-4 mr-1.5 text-emerald-600" />
-            {{ busy === "email" ? "Mengirim..." : "Kirim Email" }}
+            {{ busy === "email" ? t.sending : t.sendEmail }}
           </button>
           <button @click="showSettings = true" class="p-2.5 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors cursor-pointer" title="Email Settings">
             <Settings class="w-4.5 h-4.5" />
@@ -775,26 +850,38 @@ const onSendEmail = async () => {
       <section class="flex flex-col space-y-4">
         
         <!-- Tab Headers -->
-        <div class="flex p-1 rounded-2xl bg-slate-200/60 border border-slate-100">
-          <button @click="activeTab = 'branding'" :class="activeTab === 'branding' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'" class="flex-1 flex flex-col items-center justify-center py-2 text-[10px] font-bold rounded-xl gap-1 transition-all cursor-pointer">
-            <Palette class="w-4.5 h-4.5" />
-            <span>Brand</span>
-          </button>
-          <button @click="activeTab = 'company'" :class="activeTab === 'company' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'" class="flex-1 flex flex-col items-center justify-center py-2 text-[10px] font-bold rounded-xl gap-1 transition-all cursor-pointer">
-            <Building2 class="w-4.5 h-4.5" />
-            <span>Perusahaan</span>
-          </button>
-          <button @click="activeTab = 'client'" :class="activeTab === 'client' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'" class="flex-1 flex flex-col items-center justify-center py-2 text-[10px] font-bold rounded-xl gap-1 transition-all cursor-pointer">
-            <User class="w-4.5 h-4.5" />
-            <span>Klien</span>
-          </button>
-          <button @click="activeTab = 'items'" :class="activeTab === 'items' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'" class="flex-1 flex flex-col items-center justify-center py-2 text-[10px] font-bold rounded-xl gap-1 transition-all cursor-pointer">
-            <ListChecks class="w-4.5 h-4.5" />
-            <span>Item</span>
-          </button>
-          <button @click="activeTab = 'message'" :class="activeTab === 'message' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'" class="flex-1 flex flex-col items-center justify-center py-2 text-[10px] font-bold rounded-xl gap-1 transition-all cursor-pointer">
-            <MessageSquare class="w-4.5 h-4.5" />
-            <span>Pesan</span>
+        <div class="flex flex-wrap md:flex-nowrap gap-2 items-center justify-between">
+          <div class="flex-1 flex p-1 rounded-2xl bg-slate-200/60 border border-slate-100">
+            <button @click="activeTab = 'branding'" :class="activeTab === 'branding' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'" class="flex-1 flex flex-col items-center justify-center py-2 text-[10px] font-bold rounded-xl gap-1 transition-all cursor-pointer">
+              <Palette class="w-4.5 h-4.5" />
+              <span>{{ t.tabBrand }}</span>
+            </button>
+            <button @click="activeTab = 'company'" :class="activeTab === 'company' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'" class="flex-1 flex flex-col items-center justify-center py-2 text-[10px] font-bold rounded-xl gap-1 transition-all cursor-pointer">
+              <Building2 class="w-4.5 h-4.5" />
+              <span>{{ t.tabCompany }}</span>
+            </button>
+            <button @click="activeTab = 'client'" :class="activeTab === 'client' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'" class="flex-1 flex flex-col items-center justify-center py-2 text-[10px] font-bold rounded-xl gap-1 transition-all cursor-pointer">
+              <User class="w-4.5 h-4.5" />
+              <span>{{ t.tabClient }}</span>
+            </button>
+            <button @click="activeTab = 'items'" :class="activeTab === 'items' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'" class="flex-1 flex flex-col items-center justify-center py-2 text-[10px] font-bold rounded-xl gap-1 transition-all cursor-pointer">
+              <ListChecks class="w-4.5 h-4.5" />
+              <span>{{ t.tabItems }}</span>
+            </button>
+            <button @click="activeTab = 'message'" :class="activeTab === 'message' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-800'" class="flex-1 flex flex-col items-center justify-center py-2 text-[10px] font-bold rounded-xl gap-1 transition-all cursor-pointer">
+              <MessageSquare class="w-4.5 h-4.5" />
+              <span>{{ t.tabMessage }}</span>
+            </button>
+          </div>
+          
+          <!-- Reset Form Button -->
+          <button 
+            @click="resetForm" 
+            class="px-4 py-3 rounded-2xl bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5 shrink-0"
+            title="Reset Form"
+          >
+            <Trash2 class="w-4.5 h-4.5" />
+            <span>{{ t.resetForm }}</span>
           </button>
         </div>
 
@@ -804,7 +891,7 @@ const onSendEmail = async () => {
           <!-- Color Picker -->
           <div class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4">
             <h2 class="text-sm font-bold flex items-center gap-2 font-display" :style="{ color: accentColor }">
-              <Palette class="w-4 h-4" /> Warna Aksen
+              <Palette class="w-4 h-4" /> {{ t.accentColor }}
             </h2>
             <div>
               <div class="flex flex-wrap gap-2 mb-3.5">
@@ -826,7 +913,7 @@ const onSendEmail = async () => {
                   class="w-10 h-10 rounded-xl cursor-pointer border border-slate-200 bg-white overflow-hidden p-0"
                 />
                 <input v-model="accentColor" type="text" class="w-28 h-10 rounded-xl border border-slate-200 px-3 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-800" />
-                <span class="text-xs text-slate-400">Atau masukkan kode HEX kustom</span>
+                <span class="text-xs text-slate-400">{{ t.accentHexPlaceholder }}</span>
               </div>
             </div>
           </div>
@@ -834,9 +921,9 @@ const onSendEmail = async () => {
           <!-- Font Selection -->
           <div class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4">
             <h2 class="text-sm font-bold flex items-center gap-2 font-display" :style="{ color: accentColor }">
-              <span class="inline-flex items-center justify-center w-5 h-5 rounded-lg bg-slate-100 text-slate-700 text-xs font-serif font-black">F</span> Typography / Font Invoice
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-lg bg-slate-100 text-slate-700 text-xs font-serif font-black">F</span> {{ t.invoiceFont }}
             </h2>
-            <p class="text-xs text-slate-400 leading-normal">Pilih gaya huruf yang cocok untuk merepresentasikan brand Anda.</p>
+            <p class="text-xs text-slate-400 leading-normal">{{ t.invoiceFontDesc }}</p>
             <div class="grid grid-cols-2 gap-3">
               <button 
                 v-for="f in FONT_OPTIONS" 
@@ -856,41 +943,41 @@ const onSendEmail = async () => {
           <!-- Logo & Signature Upload -->
           <div class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4">
             <h2 class="text-sm font-bold flex items-center gap-2 font-display" :style="{ color: accentColor }">
-              <Settings2 class="w-4 h-4" /> Logo & Tanda Tangan
+              <Settings2 class="w-4 h-4" /> {{ t.companyLogo }} & {{ t.companySig }}
             </h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
               
               <!-- Company Logo -->
               <div class="space-y-3 p-4 rounded-2xl border border-slate-100 bg-slate-50/50">
-                <span class="text-xs font-bold text-slate-600 block">Logo Perusahaan</span>
+                <span class="text-xs font-bold text-slate-600 block">{{ t.companyLogo }}</span>
                 <input type="file" accept="image/*" @change="onLogoUpload" class="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200" />
                 <div v-if="logo" class="space-y-3">
                   <div class="flex items-center justify-center h-24 bg-white rounded-xl border border-slate-100">
                     <img :src="logo" alt="Logo Preview" :style="{ height: logoSize + 'px', width: logoSize + 'px', objectFit: 'contain' }" />
                   </div>
                   <div class="flex items-center gap-2">
-                    <span class="text-xs text-slate-400 w-12">Ukuran</span>
+                    <span class="text-xs text-slate-400 w-12">{{ t.logoSizeLabel }}</span>
                     <input type="range" v-model.number="logoSize" min="30" max="140" step="2" class="flex-1 cursor-pointer accent-slate-800" />
                     <span class="text-xs font-bold text-slate-600 w-10 text-right">{{ logoSize }}px</span>
                   </div>
                   <button @click="logo = undefined" class="w-full inline-flex items-center justify-center py-2 rounded-xl text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">
-                    <Trash2 class="w-3.5 h-3.5 mr-1" /> Hapus Logo
+                    <Trash2 class="w-3.5 h-3.5 mr-1" /> {{ t.deleteLogo }}
                   </button>
                 </div>
               </div>
 
               <!-- Signature -->
               <div class="space-y-3 p-4 rounded-2xl border border-slate-100 bg-slate-50/50">
-                <span class="text-xs font-bold text-slate-600 block">Tanda Tangan</span>
+                <span class="text-xs font-bold text-slate-600 block">{{ t.companySig }}</span>
                 <input type="file" accept="image/*" @change="onSigUpload" class="block w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-100 file:text-slate-700 hover:file:bg-slate-200" />
-                <!-- CANVAS SIGNATURE DRAW PAD (Available for Free Tier) -->
+                <!-- CANVAS SIGNATURE DRAW PAD -->
                 <div>
                   <button 
                     type="button" 
                     @click="showSigPad = !showSigPad" 
                     class="w-full py-1.5 px-3 border border-slate-200 text-[10px] font-bold text-slate-700 bg-white rounded-lg hover:bg-slate-50 transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
                   >
-                    ✏️ {{ showSigPad ? 'Tutup Pad Gambar' : 'Gambar Ttd di Layar' }}
+                    ✏️ {{ showSigPad ? t.signaturePadBtnClose : t.signaturePadBtnOpen }}
                   </button>
                   <div v-if="showSigPad" class="space-y-2 mt-2 p-2.5 rounded-xl border border-slate-200 bg-slate-50/20">
                     <canvas 
@@ -907,8 +994,8 @@ const onSendEmail = async () => {
                       class="border border-slate-200 rounded-xl bg-white cursor-crosshair w-full h-24 shadow-inner"
                     ></canvas>
                     <div class="flex gap-2">
-                      <button type="button" @click="clearCanvas" class="flex-1 py-1 text-[9px] font-bold text-slate-500 rounded-md border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer">Hapus</button>
-                      <button type="button" @click="saveCanvas" class="flex-1 py-1 text-[9px] font-bold text-white rounded-md hover:opacity-90 cursor-pointer" :style="{ backgroundColor: accentColor }">Simpan Ttd</button>
+                      <button type="button" @click="clearCanvas" class="flex-1 py-1 text-[9px] font-bold text-slate-500 rounded-md border border-slate-200 bg-white hover:bg-slate-50 cursor-pointer">{{ t.signaturePadClear }}</button>
+                      <button type="button" @click="saveCanvas" class="flex-1 py-1 text-[9px] font-bold text-white rounded-md hover:opacity-90 cursor-pointer" :style="{ backgroundColor: accentColor }">{{ t.signaturePadSave }}</button>
                     </div>
                   </div>
                 </div>
@@ -918,12 +1005,12 @@ const onSendEmail = async () => {
                     <img :src="signature" alt="Signature Preview" :style="{ width: signatureSize + 'px', height: (signatureSize * 0.5) + 'px', objectFit: 'contain' }" />
                   </div>
                   <div class="flex items-center gap-2">
-                    <span class="text-xs text-slate-400 w-12">Ukuran</span>
+                    <span class="text-xs text-slate-400 w-12">{{ t.sigSizeLabel }}</span>
                     <input type="range" v-model.number="signatureSize" min="60" max="240" step="4" class="flex-1 cursor-pointer accent-slate-800" />
                     <span class="text-xs font-bold text-slate-600 w-10 text-right">{{ signatureSize }}px</span>
                   </div>
                   <button @click="signature = undefined" class="w-full inline-flex items-center justify-center py-2 rounded-xl text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-colors cursor-pointer">
-                    <Trash2 class="w-3.5 h-3.5 mr-1" /> Hapus Ttd
+                    <Trash2 class="w-3.5 h-3.5 mr-1" /> {{ t.deleteSig }}
                   </button>
                 </div>
               </div>
@@ -933,18 +1020,18 @@ const onSendEmail = async () => {
 
           <!-- Invoice Details -->
           <div class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4">
-            <h2 class="text-sm font-bold font-display" :style="{ color: accentColor }">Detail Invoice</h2>
+            <h2 class="text-sm font-bold font-display" :style="{ color: accentColor }">{{ t.invoiceDetails }}</h2>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
               <div>
-                <label class="text-xs font-bold text-slate-500 mb-1 block">No. Referensi</label>
+                <label class="text-xs font-bold text-slate-500 mb-1 block">{{ t.referenceNo }}</label>
                 <input v-model="reference" type="text" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" />
               </div>
               <div>
-                <label class="text-xs font-bold text-slate-500 mb-1 block">Tanggal</label>
+                <label class="text-xs font-bold text-slate-500 mb-1 block">{{ t.invoiceDate }}</label>
                 <input v-model="date" type="date" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" />
               </div>
               <div>
-                <label class="text-xs font-bold text-slate-500 mb-1 block">Jatuh Tempo</label>
+                <label class="text-xs font-bold text-slate-500 mb-1 block">{{ t.invoiceDueDate }}</label>
                 <input v-model="dueDate" type="date" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" />
               </div>
             </div>
@@ -955,14 +1042,14 @@ const onSendEmail = async () => {
         <!-- Perusahaan Tab -->
         <div v-if="activeTab === 'company'" class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <h2 class="text-sm font-bold flex items-center gap-2 font-display" :style="{ color: accentColor }">
-            <Building2 class="w-4 h-4" /> Informasi Perusahaan (Pengirim)
+            <Building2 class="w-4 h-4" /> {{ t.companyInfoTitle }}
           </h2>
           <div class="space-y-3.5">
             <div>
-              <label class="text-xs font-bold text-slate-500 mb-1 block">Nama Perusahaan</label>
+              <label class="text-xs font-bold text-slate-500 mb-1 block">{{ t.companyNameLabel }}</label>
               <input v-model="companyName" type="text" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" />
               <div class="flex flex-wrap gap-1.5 mt-2">
-                <span class="text-[9px] font-black text-slate-400 uppercase self-center mr-1">Preset:</span>
+                <span class="text-[9px] font-black text-slate-400 uppercase self-center mr-1">{{ t.presetsLabel }}</span>
                 <button 
                   v-for="c in INVOICE_PRESETS.company" 
                   :key="c.label" 
@@ -975,16 +1062,16 @@ const onSendEmail = async () => {
               </div>
             </div>
             <div>
-              <label class="text-xs font-bold text-slate-500 mb-1 block">Alamat Kantor</label>
+              <label class="text-xs font-bold text-slate-500 mb-1 block">{{ t.companyAddressLabel }}</label>
               <textarea v-model="companyAddress" rows="2" class="w-full p-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800"></textarea>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               <div>
-                <label class="text-xs font-bold text-slate-500 mb-1 block">Nomor Telepon</label>
+                <label class="text-xs font-bold text-slate-500 mb-1 block">{{ t.companyPhoneLabel }}</label>
                 <input v-model="companyPhone" type="text" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" />
               </div>
               <div>
-                <label class="text-xs font-bold text-slate-500 mb-1 block">Alamat Email</label>
+                <label class="text-xs font-bold text-slate-500 mb-1 block">{{ t.companyEmailLabel }}</label>
                 <input v-model="companyEmail" type="email" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" />
               </div>
             </div>
@@ -994,14 +1081,14 @@ const onSendEmail = async () => {
         <!-- Klien Tab -->
         <div v-if="activeTab === 'client'" class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
           <h2 class="text-sm font-bold flex items-center gap-2 font-display" :style="{ color: accentColor }">
-            <User class="w-4 h-4" /> Informasi Klien (Penerima Tagihan)
+            <User class="w-4 h-4" /> {{ t.clientInfoTitle }}
           </h2>
           <div class="space-y-3.5">
             <div>
-              <label class="text-xs font-bold text-slate-500 mb-1 block">Nama Klien / Instansi</label>
+              <label class="text-xs font-bold text-slate-500 mb-1 block">{{ t.clientNameLabel }}</label>
               <input v-model="clientName" type="text" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" />
               <div class="flex flex-wrap gap-1.5 mt-2">
-                <span class="text-[9px] font-black text-slate-400 uppercase self-center mr-1">Preset:</span>
+                <span class="text-[9px] font-black text-slate-400 uppercase self-center mr-1">{{ t.presetsLabel }}</span>
                 <button 
                   v-for="cl in INVOICE_PRESETS.client" 
                   :key="cl.label" 
@@ -1014,16 +1101,16 @@ const onSendEmail = async () => {
               </div>
             </div>
             <div>
-              <label class="text-xs font-bold text-slate-500 mb-1 block">Alamat Klien</label>
+              <label class="text-xs font-bold text-slate-500 mb-1 block">{{ t.clientAddressLabel }}</label>
               <textarea v-model="clientAddress" rows="2" class="w-full p-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800"></textarea>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               <div>
-                <label class="text-xs font-bold text-slate-500 mb-1 block">Nomor Telepon Klien</label>
+                <label class="text-xs font-bold text-slate-500 mb-1 block">{{ t.clientPhoneLabel }}</label>
                 <input v-model="clientPhone" type="text" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" />
               </div>
               <div>
-                <label class="text-xs font-bold text-slate-500 mb-1 block">Email Klien</label>
+                <label class="text-xs font-bold text-slate-500 mb-1 block">{{ t.clientEmailLabel }}</label>
                 <input v-model="clientEmail" type="email" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" />
               </div>
             </div>
@@ -1032,23 +1119,23 @@ const onSendEmail = async () => {
 
         <!-- Items Tab -->
         <div v-if="activeTab === 'items'" class="space-y-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <div v-for="(item, idx) in items" :key="idx" class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4 relative group">
+          <div v-for="(item, idx) in items" :key="idx" class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4 relative group text-left">
             
             <!-- Remove Button -->
             <button @click="removeItem(idx)" class="absolute top-4 right-4 p-2 rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer" title="Hapus Item">
               <Trash2 class="w-4 h-4" />
             </button>
 
-            <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">Item #{{ idx + 1 }}</h3>
+            <h3 class="text-xs font-black text-slate-400 uppercase tracking-widest">{{ t.itemsTabTitle }} #{{ idx + 1 }}</h3>
 
             <!-- Item Input Form Fields -->
             <div class="space-y-3">
               <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
                 <div class="md:col-span-8">
-                  <label class="text-xs font-bold text-slate-500 mb-1 block">Produk / Layanan</label>
-                  <input v-model="item.product" type="text" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" placeholder="Contoh: Jasa Pembuatan Website" />
+                  <label class="text-xs font-bold text-slate-500 mb-1 block">{{ t.productNameLabel }}</label>
+                  <input v-model="item.product" type="text" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" :placeholder="t.productNamePlaceholder" />
                   <div class="flex flex-wrap gap-1.5 mt-2">
-                    <span class="text-[9px] font-black text-slate-400 uppercase self-center mr-1">Preset:</span>
+                    <span class="text-[9px] font-black text-slate-400 uppercase self-center mr-1">{{ t.presetsLabel }}</span>
                     <button 
                       v-for="p in INVOICE_PRESETS.products" 
                       :key="p.label" 
@@ -1061,27 +1148,27 @@ const onSendEmail = async () => {
                   </div>
                 </div>
                 <div class="md:col-span-4">
-                  <label class="text-xs font-bold text-slate-500 mb-1 block">Qty</label>
+                  <label class="text-xs font-bold text-slate-500 mb-1 block">{{ t.quantityLabel }}</label>
                   <input v-model.number="item.qty" type="number" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" />
                 </div>
               </div>
 
               <div>
-                <label class="text-xs font-bold text-slate-500 mb-1 block">Deskripsi Detail</label>
-                <input v-model="item.description" type="text" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" placeholder="Deskripsi spesifikasi layanan..." />
+                <label class="text-xs font-bold text-slate-500 mb-1 block">{{ t.productDescLabel }}</label>
+                <input v-model="item.description" type="text" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" :placeholder="t.productDescPlaceholder" />
               </div>
 
               <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <div>
-                  <label class="text-xs font-bold text-slate-500 mb-1 block">Harga Satuan (Rp)</label>
+                  <label class="text-xs font-bold text-slate-500 mb-1 block">{{ t.unitPriceLabel }}</label>
                   <input v-model.number="item.price" type="number" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" />
                 </div>
                 <div>
-                  <label class="text-xs font-bold text-slate-500 mb-1 block">Diskon (%)</label>
+                  <label class="text-xs font-bold text-slate-500 mb-1 block">{{ t.discountLabel }}</label>
                   <input v-model.number="item.discount" type="number" min="0" max="100" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" />
                 </div>
                 <div>
-                  <label class="text-xs font-bold text-slate-500 mb-1 block">Pajak (%)</label>
+                  <label class="text-xs font-bold text-slate-500 mb-1 block">{{ t.taxLabel }}</label>
                   <input v-model.number="item.tax" type="number" min="0" max="100" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" />
                 </div>
               </div>
@@ -1092,7 +1179,7 @@ const onSendEmail = async () => {
           <!-- Add Item Button -->
           <button @click="addItem" :style="{ color: accentColor, borderColor: accentColor + '30' }" class="w-full py-4.5 rounded-3xl border border-dashed flex items-center justify-center gap-2 text-sm font-bold bg-white cursor-pointer hover:bg-slate-50/50 transition-colors">
             <Plus class="w-4.5 h-4.5" />
-            Tambah Baris Item
+            {{ t.addRowBtn }}
           </button>
         </div>
 
@@ -1102,45 +1189,77 @@ const onSendEmail = async () => {
           <!-- Message Input -->
           <div class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4">
             <h2 class="text-sm font-bold flex items-center gap-2 font-display" :style="{ color: accentColor }">
-              <MessageSquare class="w-4 h-4" /> Catatan / Pesan Pembayaran
+              <MessageSquare class="w-4 h-4" /> {{ t.notesTitle }}
             </h2>
             <div class="space-y-3.5">
               <div>
-                <label class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block mb-1.5">Pilih Template Catatan</label>
+                <label class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block mb-1.5">{{ t.noteTemplateLabel }}</label>
                 <select @change="message = $event.target.value" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-slate-800 cursor-pointer">
                   <option v-for="t in MESSAGE_TEMPLATES" :key="t.name" :value="t.text">{{ t.name }}</option>
                 </select>
               </div>
               <div>
-                <label class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block mb-1.5">Detail Catatan / Instruksi</label>
-                <textarea v-model="message" rows="5" class="w-full p-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800 text-slate-600 font-medium" placeholder="Tulis instruksi rekening bank pembayaran atau ucapan terima kasih..."></textarea>
+                <label class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block mb-1.5">{{ t.noteDetailLabel }}</label>
+                <textarea v-model="message" rows="5" class="w-full p-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800 text-slate-600 font-medium" :placeholder="t.noteDetailPlaceholder"></textarea>
               </div>
             </div>
           </div>
 
-          <!-- QRIS dynamic payment (🔒 Coming Soon Feature) -->
-          <div class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4">
-            <div class="flex items-center justify-between">
-              <h2 class="text-sm font-bold flex items-center gap-2 font-display text-slate-500">
-                <span class="inline-flex items-center justify-center w-5 h-5 rounded-lg bg-slate-100 text-slate-500 text-[10px] font-black">QR</span> QRIS / QR Pembayaran
-              </h2>
-              <span class="text-[9px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">COMING SOON</span>
+          <!-- QRIS dynamic payment -->
+          <div class="rounded-3xl border border-slate-100 bg-white p-5 relative overflow-hidden">
+            <!-- Frosted Glass Lock Overlay for Free Tier -->
+            <div v-if="userTier === 'free'" class="absolute inset-0 bg-white/75 backdrop-blur-md z-10 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
+              <div class="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 mb-3">
+                <Lock class="w-5 h-5" />
+              </div>
+              <h3 class="text-xs font-bold text-slate-800 uppercase tracking-wider">{{ t.qrisTitle }} (PRO)</h3>
+              <p class="text-[11px] text-slate-500 max-w-xs mt-1.5 leading-relaxed">
+                {{ t.qrisDesc }}
+              </p>
+              <button @click="showUpgradeModal = true" class="mt-3.5 px-4 py-2 rounded-xl text-[10px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-md transition-all cursor-pointer">
+                {{ t.proBtnUpgrade }}
+              </button>
             </div>
-            <p class="text-xs text-slate-400 leading-normal">
-              Fitur penyertaan QR Code / QRIS pembayaran otomatis untuk invoice Anda akan segera hadir pada rilis Pro Tier mendatang.
-            </p>
+
+            <!-- Active Form Content (for Pro Tier or unlocked simulator) -->
+            <div class="space-y-4">
+              <div class="flex items-center justify-between">
+                <h2 class="text-sm font-bold flex items-center gap-2 font-display text-slate-800">
+                  <span class="inline-flex items-center justify-center w-5 h-5 rounded-lg bg-indigo-50 text-indigo-600 text-[10px] font-black">QR</span> {{ t.qrisTitle }}
+                </h2>
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" id="show-qris" v-model="showPaymentQr" class="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4 cursor-pointer" />
+                  <label for="show-qris" class="text-xs font-bold text-slate-700 cursor-pointer">{{ t.qrisToggleLabel }}</label>
+                </div>
+              </div>
+
+              <div v-if="showPaymentQr" class="grid grid-cols-1 sm:grid-cols-3 gap-3 animate-in fade-in duration-200">
+                <div>
+                  <label class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block mb-1">{{ t.qrisBankLabel }}</label>
+                  <input v-model="paymentQrBank" type="text" class="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-slate-800 text-slate-700 font-bold" />
+                </div>
+                <div>
+                  <label class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block mb-1">{{ t.qrisAccountLabel }}</label>
+                  <input v-model="paymentQrAccount" type="text" class="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-slate-800 text-slate-700 font-bold" />
+                </div>
+                <div>
+                  <label class="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 block mb-1">{{ t.qrisHolderLabel }}</label>
+                  <input v-model="paymentQrHolder" type="text" class="w-full h-10 px-3 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-slate-800 text-slate-700 font-bold" />
+                </div>
+              </div>
+            </div>
           </div>
 
           <!-- Signer Details -->
           <div class="rounded-3xl border border-slate-100 bg-white p-5 space-y-4">
-            <h2 class="text-sm font-bold font-display" :style="{ color: accentColor }">Informasi Penandatangan</h2>
+            <h2 class="text-sm font-bold font-display" :style="{ color: accentColor }">{{ t.signerTitle }}</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3.5">
               <div>
-                <label class="text-xs font-bold text-slate-500 mb-1 block">Nama Lengkap</label>
+                <label class="text-xs font-bold text-slate-500 mb-1 block">{{ t.signerNameLabel }}</label>
                 <input v-model="signerName" type="text" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" />
               </div>
               <div>
-                <label class="text-xs font-bold text-slate-500 mb-1 block">Jabatan / Divisi</label>
+                <label class="text-xs font-bold text-slate-500 mb-1 block">{{ t.signerTitleLabel }}</label>
                 <input v-model="signerTitle" type="text" class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" />
               </div>
             </div>
@@ -1174,13 +1293,13 @@ const onSendEmail = async () => {
               </div>
               
               <div class="text-right">
-                <span :style="{ color: accentColor, fontFamily: selectedFont.css }" class="text-2xl font-black tracking-tight transition-colors duration-500">INVOICE</span>
+                <span :style="{ color: accentColor, fontFamily: selectedFont.css }" class="text-2xl font-black tracking-tight transition-colors duration-500">{{ t.previewInvoiceTitle }}</span>
                 
                 <!-- Meta Grid -->
                 <div class="mt-6 space-y-1.5 text-right flex flex-col items-end">
-                  <div class="flex justify-between w-40 text-slate-400"><span class="text-[9px]">Referensi:</span><span class="font-bold text-slate-800">{{ reference }}</span></div>
-                  <div class="flex justify-between w-40 text-slate-400"><span class="text-[9px]">Tanggal:</span><span class="font-bold text-slate-800">{{ idDate(date) }}</span></div>
-                  <div class="flex justify-between w-40 text-slate-400"><span class="text-[9px]">Jatuh Tempo:</span><span class="font-bold text-slate-800">{{ idDate(dueDate) }}</span></div>
+                  <div class="flex justify-between w-40 text-slate-400"><span class="text-[9px]">{{ t.referenceNo }}:</span><span class="font-bold text-slate-800">{{ reference }}</span></div>
+                  <div class="flex justify-between w-40 text-slate-400"><span class="text-[9px]">{{ t.invoiceDate }}:</span><span class="font-bold text-slate-800">{{ idDate(date) }}</span></div>
+                  <div class="flex justify-between w-40 text-slate-400"><span class="text-[9px]">{{ t.invoiceDueDate }}:</span><span class="font-bold text-slate-800">{{ idDate(dueDate) }}</span></div>
                 </div>
               </div>
             </div>
@@ -1188,12 +1307,12 @@ const onSendEmail = async () => {
             <!-- Client Info Billing Block -->
             <div class="grid grid-cols-2 gap-8 py-5 border-y border-slate-100">
               <div>
-                <span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider mb-2.5 block">Informasi Perusahaan</span>
+                <span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider mb-2.5 block">{{ t.companyInfoTitle }}</span>
                 <p class="font-extrabold text-slate-800 text-[11px]">{{ companyName }}</p>
                 <p class="text-slate-500 text-[10px] mt-1 leading-relaxed">{{ companyAddress }}</p>
               </div>
               <div>
-                <span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider mb-2.5 block">Tagihan Kepada</span>
+                <span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider mb-2.5 block">{{ t.clientInfoTitle }}</span>
                 <p class="font-extrabold text-slate-800 text-[11px]">{{ clientName }}</p>
                 <p class="text-slate-500 text-[10px] mt-1 leading-relaxed">{{ clientAddress }}</p>
                 <p v-if="clientPhone" class="text-slate-500 text-[10px] mt-0.5">Telp: {{ clientPhone }}</p>
@@ -1206,17 +1325,17 @@ const onSendEmail = async () => {
               
               <!-- Table Headers -->
               <div class="flex justify-between font-bold text-slate-400 uppercase text-[9px] tracking-wider pb-1.5 border-b border-slate-100">
-                <span class="w-[22%]">Produk</span>
-                <span class="w-[28%]">Deskripsi</span>
-                <span class="w-[8%] text-center">Qty</span>
-                <span class="w-[12%] text-right">Diskon</span>
-                <span class="w-[10%] text-right">Pajak</span>
-                <span class="w-[20%] text-right">Jumlah</span>
+                <span class="w-[22%]">{{ t.productNameLabel }}</span>
+                <span class="w-[28%]">{{ t.productDescLabel }}</span>
+                <span class="w-[8%] text-center">{{ t.quantityLabel }}</span>
+                <span class="w-[12%] text-right">{{ t.discountLabel }}</span>
+                <span class="w-[10%] text-right">{{ t.taxLabel }}</span>
+                <span class="w-[20%] text-right">{{ t.previewTotal.replace(':','') }}</span>
               </div>
               
               <!-- Table Rows -->
               <div v-for="(it, idx) in items" :key="idx" class="flex justify-between items-start text-[10.5px] py-2 border-b border-slate-50/50">
-                <span class="w-[22%] font-bold text-slate-800 break-words pr-2">{{ it.product || 'Nama Produk' }}</span>
+                <span class="w-[22%] font-bold text-slate-800 break-words pr-2">{{ it.product || t.productNamePlaceholder }}</span>
                 <span class="w-[28%] text-slate-400 break-words pr-2 leading-relaxed">{{ it.description }}</span>
                 <span class="w-[8%] text-center text-slate-700 font-medium">{{ it.qty }}</span>
                 <span class="w-[12%] text-right text-slate-600">{{ it.discount }}%</span>
@@ -1232,24 +1351,24 @@ const onSendEmail = async () => {
               <!-- Left side payment notes -->
               <div class="space-y-4">
                 <div>
-                  <span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider mb-1.5 block">Pesan / Catatan</span>
+                  <span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider mb-1.5 block">{{ t.notesTitle }}</span>
                   <p class="text-slate-500 text-[10px] leading-relaxed whitespace-pre-wrap">{{ message }}</p>
                 </div>
                 <div>
-                  <span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider mb-1 block">Terbilang</span>
+                  <span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider mb-1 block">{{ t.previewTerbilang }}</span>
                   <p class="font-bold text-slate-800 text-[10px] italic leading-tight">{{ terbilang(grandTotal(items)) }}</p>
                 </div>
                 <div v-if="showPaymentQr">
                   <!-- Free Tier Preview -->
                   <div v-if="userTier !== 'pro'" class="mt-4 p-3 rounded-2xl border border-dashed border-indigo-200 bg-indigo-50/20 text-left space-y-1.5 max-w-[240px]">
                     <div class="flex items-center gap-1.5 text-indigo-700 font-bold text-[9px]">
-                      <span>🔒</span> QRIS Pembayaran (Pro Feature)
+                      <span>🔒</span> {{ t.qrisTitle }} (Pro Feature)
                     </div>
-                    <p class="text-[8px] text-indigo-500 leading-normal">Aktifkan Pro Tier untuk melampirkan QR code pembayaran otomatis pada invoice ini.</p>
+                    <p class="text-[8px] text-indigo-500 leading-normal">{{ t.qrisDesc }}</p>
                   </div>
                   <!-- Pro Tier Preview -->
                   <div v-else class="mt-4 space-y-1.5 text-left max-w-[240px]">
-                    <span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider block">Scan QRIS untuk Bayar</span>
+                    <span class="font-bold text-slate-400 uppercase text-[9px] tracking-wider block">{{ t.previewQrisScan }}</span>
                     <div class="p-2 bg-white border border-slate-200 rounded-2xl w-28 h-28 flex items-center justify-center">
                       <img 
                         :src="`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent('Transfer Bank ' + paymentQrBank + ' No. Rek: ' + paymentQrAccount + ' a.n ' + paymentQrHolder + ' Total: Rp ' + fmt(grandTotal(items)))}`" 
@@ -1267,15 +1386,15 @@ const onSendEmail = async () => {
               <!-- Right side totals sheet -->
               <div class="flex flex-col items-end space-y-2 text-[10.5px] border-t border-slate-50 md:border-t-0 pt-4 md:pt-0">
                 <div class="flex justify-between w-full max-w-[220px] text-slate-500">
-                  <span>Subtotal:</span>
+                  <span>{{ t.demoSubtotal }}</span>
                   <span class="font-bold text-slate-700">Rp {{ fmt(subtotal(items)) }}</span>
                 </div>
                 <div class="flex justify-between w-full max-w-[220px] text-slate-500">
-                  <span>Total Diskon:</span>
+                  <span>{{ t.previewDiscount }}</span>
                   <span class="font-bold text-slate-700">(Rp {{ fmt(totalDiscount(items)) }})</span>
                 </div>
                 <div class="flex justify-between w-full max-w-[220px] font-black text-sm pt-2 border-t border-slate-100">
-                  <span class="text-slate-800">Total:</span>
+                  <span class="text-slate-800">{{ t.previewTotal }}</span>
                   <span class="transition-colors duration-500" :style="{ color: accentColor }">Rp {{ fmt(grandTotal(items)) }}</span>
                 </div>
               </div>
@@ -1303,7 +1422,7 @@ const onSendEmail = async () => {
 
           <!-- Bottom Accent Strip -->
           <div class="px-8 py-5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-semibold rounded-b-3xl">
-            <span>Terima kasih atas kerja samanya.</span>
+            <span>{{ t.demoFooterText }}</span>
             <span class="font-extrabold text-slate-600">KADUIN Invoice</span>
           </div>
 
@@ -1317,7 +1436,7 @@ const onSendEmail = async () => {
     <div v-if="showSettings" class="fixed inset-0 z-50 flex items-center justify-center p-4">
       
       <!-- Backdrop overlay -->
-      <div @click="showSettings = false" class="absolute inset-0 bg-slate-900/60 backdrop-blur-xs"></div>
+      <div @click="showSettings = false; showApiKey = false" class="absolute inset-0 bg-slate-900/60 backdrop-blur-xs"></div>
       
       <!-- Dialog container -->
       <div class="relative w-full max-w-md rounded-3xl bg-white border border-slate-100 p-6 shadow-2xl space-y-4 text-left animate-in fade-in zoom-in-95 duration-200">
@@ -1325,25 +1444,36 @@ const onSendEmail = async () => {
         <div class="flex items-center justify-between">
           <h3 class="text-base font-bold text-slate-800 font-display flex items-center gap-2">
             <Settings class="w-4.5 h-4.5 text-slate-500" />
-            Pengaturan API Email
+            {{ t.modalSettingsTitle }}
           </h3>
-          <button @click="showSettings = false" class="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer">
+          <button @click="showSettings = false; showApiKey = false" class="p-1 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer">
             <X class="w-4.5 h-4.5" />
           </button>
         </div>
 
         <p class="text-xs text-slate-500 leading-relaxed">
-          Fitur pengiriman email instan menggunakan layanan **Resend**. API Key disimpan aman secara lokal di browser Anda.
+          {{ t.modalSettingsSub }}
         </p>
 
         <div class="space-y-2">
           <label class="text-xs font-bold text-slate-600 block">Resend API Key</label>
-          <input 
-            v-model="resendKeyInput" 
-            type="password" 
-            class="w-full h-10 px-3.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" 
-            placeholder="re_xxxxxxxxxxxxxxxx" 
-          />
+          <div class="relative">
+            <input 
+              v-model="resendKeyInput" 
+              :type="showApiKey ? 'text' : 'password'" 
+              class="w-full h-10 pl-3.5 pr-10 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-800" 
+              placeholder="re_xxxxxxxxxxxxxxxx" 
+            />
+            <button 
+              type="button" 
+              @click="showApiKey = !showApiKey" 
+              class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer focus:outline-none"
+              title="Toggle API Key visibility"
+            >
+              <Eye v-if="!showApiKey" class="w-4.5 h-4.5" />
+              <EyeOff v-else class="w-4.5 h-4.5" />
+            </button>
+          </div>
         </div>
 
         <div v-if="savedKeyNotice" class="text-xs font-bold text-emerald-600 text-center py-1.5 bg-emerald-50 rounded-xl">
@@ -1351,11 +1481,11 @@ const onSendEmail = async () => {
         </div>
 
         <div class="flex justify-end gap-2 pt-2">
-          <button @click="showSettings = false" class="inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer">
-            Batal
+          <button @click="showSettings = false; showApiKey = false" class="inline-flex items-center justify-center px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer">
+            {{ t.modalSettingsCancel }}
           </button>
           <button @click="onSaveSettings" :style="{ backgroundColor: accentColor }" class="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow-md cursor-pointer hover:opacity-95 transition-opacity">
-            Simpan API Key
+            {{ t.modalSettingsSave }}
           </button>
         </div>
 
@@ -1373,7 +1503,7 @@ const onSendEmail = async () => {
         <div class="flex items-center justify-between">
           <h3 class="text-lg font-black text-slate-800 font-display flex items-center gap-2">
             <Sparkles class="w-5 h-5 text-indigo-600 animate-pulse" />
-            Pilih Paket Akun Anda
+            {{ t.modalUpgradeTitle }}
           </h3>
           <button @click="showUpgradeModal = false" class="p-1.5 rounded-xl text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer">
             <X class="w-5 h-5" />
@@ -1381,7 +1511,7 @@ const onSendEmail = async () => {
         </div>
 
         <p class="text-xs text-slate-500 leading-normal">
-          Sesuaikan paket langganan Anda untuk membuka semua fitur premium pembuat invoice.
+          {{ t.modalUpgradeSub }}
         </p>
 
         <!-- Plans Cards Grid -->
@@ -1395,23 +1525,29 @@ const onSendEmail = async () => {
           >
             <div>
               <div class="flex items-center justify-between mb-3">
-                <span class="text-xs font-bold text-slate-700">Free Trial</span>
-                <span v-if="userTier === 'free'" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">AKTIF</span>
+                <span class="text-xs font-bold text-slate-700">{{ t.freeTitle.split(' ')[0] + ' ' + t.freeTitle.split(' ')[1] }}</span>
+                <span v-if="userTier === 'free'" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">{{ t.modalUpgradeActive }}</span>
               </div>
-              <p class="text-sm font-black text-slate-800 font-display">Rp 0</p>
+              <p class="text-sm font-black text-slate-800 font-display">{{ t.freePrice }}</p>
               <ul class="text-[10.5px] text-slate-500 mt-4 space-y-2">
                 <li class="flex items-center gap-1.5">
                   <Check class="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                  <span>Maksimal 10x download</span>
+                  <span>{{ t.freeFeature1 }}</span>
                 </li>
-                <li class="flex items-center gap-1.5 text-slate-400 line-through">
-                  <X class="w-3.5 h-3.5 text-slate-300 shrink-0" />
-                  <span>Kirim email instan</span>
+                <li class="flex items-center gap-1.5">
+                  <Check class="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span>{{ t.freeFeature2 }}</span>
+                </li>
+                <li class="flex items-center gap-1.5">
+                  <Check class="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span>{{ t.freeFeature3 }}</span>
                 </li>
               </ul>
             </div>
             <div class="mt-6">
-              <span class="text-[10px] font-bold text-slate-500 block font-display">Digunakan: {{ trialCount }}/10</span>
+              <span class="text-[10px] font-bold text-slate-500 block font-display">
+                {{ t.trialRemaining.replace('{0}', Math.max(0, 10 - trialCount)) }}
+              </span>
             </div>
           </div>
 
@@ -1423,28 +1559,36 @@ const onSendEmail = async () => {
           >
             <div>
               <div class="flex items-center justify-between mb-3">
-                <span class="text-xs font-bold text-slate-700">Pro Tier</span>
-                <span v-if="userTier === 'pro'" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">AKTIF</span>
-                <span v-else class="text-[9px] font-black px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">SOON / COBA</span>
+                <span class="text-xs font-bold text-slate-700">{{ t.proTitle }}</span>
+                <span v-if="userTier === 'pro'" class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800">{{ t.modalUpgradeActive }}</span>
+                <span v-else class="text-[9px] font-black px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700">{{ t.proBtnSoon }}</span>
               </div>
-              <p class="text-sm font-black text-slate-800 font-display">Rp 25.000<span class="text-[10px] text-slate-400 font-normal">/bulan</span></p>
+              <p class="text-sm font-black text-slate-800 font-display">{{ t.proPrice }}<span class="text-[10px] text-slate-400 font-normal">{{ t.proPriceSub }}</span></p>
               <ul class="text-[10.5px] text-slate-500 mt-4 space-y-2">
                 <li class="flex items-center gap-1.5">
                   <Check class="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                  <span>Unlimited download</span>
+                  <span>{{ t.proFeature1 }}</span>
                 </li>
                 <li class="flex items-center gap-1.5">
                   <Check class="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                  <span>Kirim email via Resend API</span>
+                  <span>{{ t.proFeature2 }}</span>
+                </li>
+                <li class="flex items-center gap-1.5">
+                  <Check class="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                  <span>{{ t.proFeature3 }}</span>
+                </li>
+                <li class="flex items-center gap-1.5">
+                  <Check class="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                  <span>{{ t.proFeature4 }}</span>
                 </li>
               </ul>
             </div>
             <div class="mt-6">
               <button 
-                disabled
-                class="w-full py-2.5 rounded-xl text-xs font-bold text-slate-400 bg-slate-100 transition-all text-center cursor-not-allowed"
+                @click="showCheckoutModal = true"
+                class="w-full py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all text-center cursor-pointer shadow-md"
               >
-                Segera Hadir (Belum Dibuka)
+                {{ t.proBtnSoon }}
               </button>
             </div>
           </div>
@@ -1453,14 +1597,50 @@ const onSendEmail = async () => {
 
         <div class="flex justify-end pt-2">
           <button @click="showUpgradeModal = false" :style="{ backgroundColor: accentColor }" class="inline-flex items-center justify-center px-6 py-2.5 rounded-xl text-xs font-bold text-white shadow-md cursor-pointer hover:opacity-95 transition-opacity">
-            Selesai
+            {{ t.modalUpgradeDoneBtn }}
           </button>
         </div>
 
       </div>
     </div>
 
-    <!-- PAYMENT SIMULATION DISABLED -->
+    <!-- PRO TIER LOCKED / COMING SOON MODAL -->
+    <div v-if="showCheckoutModal" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div @click="showCheckoutModal = false" class="absolute inset-0 bg-slate-900/60 backdrop-blur-xs"></div>
+      
+      <div class="relative w-full max-w-sm rounded-3xl bg-white border border-slate-100 p-6 shadow-2xl space-y-6 text-center animate-in fade-in zoom-in-95 duration-200">
+        
+        <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+          <h3 class="text-sm font-black text-slate-800 font-display flex items-center gap-2">
+            <Sparkles class="w-4.5 h-4.5 text-indigo-600 animate-pulse" />
+            {{ t.proTitle }} &mdash; {{ t.proBtnSoon }}
+          </h3>
+          <button @click="showCheckoutModal = false" class="p-1 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors cursor-pointer">
+            <X class="w-4.5 h-4.5" />
+          </button>
+        </div>
+
+        <div class="space-y-4 flex flex-col items-center py-2">
+          <div class="w-16 h-16 rounded-full bg-indigo-50 border border-indigo-100 flex items-center justify-center text-indigo-600 text-3xl">
+            🚀
+          </div>
+          <div class="space-y-2">
+            <h4 class="text-sm font-extrabold text-slate-800">{{ t.proTierLockedTitle }}</h4>
+            <p class="text-xs text-slate-500 leading-relaxed">{{ t.proTierLockedDesc }}</p>
+          </div>
+        </div>
+
+        <div class="pt-2">
+          <button 
+            @click="showCheckoutModal = false" 
+            class="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white shadow-lg shadow-indigo-600/20 transition-all cursor-pointer"
+          >
+            {{ t.modalUpgradeDoneBtn }}
+          </button>
+        </div>
+
+      </div>
+    </div>
 
   </div>
 </template>

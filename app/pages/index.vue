@@ -18,6 +18,7 @@ import {
   FileSpreadsheet,
   CheckCircle2
 } from '@lucide/vue'
+import { translations, loadLanguage, saveLanguage } from '~/utils/translations'
 
 // App States
 const companyName = ref('PT Maju Jaya Kreatif')
@@ -27,6 +28,39 @@ const invoiceNumber = ref('INV-2026-004')
 const selectedColor = ref('#1F3A5F')
 const emailPreviewSent = ref(false)
 const mobileMenuOpen = ref(false)
+const langMenuOpen = ref(false)
+
+const currentLang = ref('id')
+const t = computed(() => translations[currentLang.value])
+
+onMounted(() => {
+  currentLang.value = loadLanguage()
+})
+
+const changeLanguage = (langCode) => {
+  currentLang.value = langCode
+  saveLanguage(langCode)
+}
+
+const getLangFlag = (code) => {
+  const flags = {
+    id: '🇮🇩', en: '🇺🇸', zh: '🇨🇳', ja: '🇯🇵', ko: '🇰🇷',
+    es: '🇪🇸', fr: '🇫🇷', de: '🇩🇪', it: '🇮🇹', pt: '🇵🇹',
+    ru: '🇷🇺', ar: '🇸🇦', hi: '🇮🇳', tr: '🇹🇷', vi: '🇻🇳',
+    th: '🇹🇭', nl: '🇳🇱', pl: '🇵🇱', sv: '🇸🇪', tl: '🇵🇭', ms: '🇲🇾'
+  }
+  return flags[code] || '🌐'
+}
+
+const getLangName = (code) => {
+  const names = {
+    id: 'Indonesia', en: 'English', zh: '中文', ja: '日本語', ko: '한국어',
+    es: 'Español', fr: 'Français', de: 'Deutsch', it: 'Italiano', pt: 'Português',
+    ru: 'Русский', ar: 'العربية', hi: 'हिन्दी', tr: 'Türkçe', vi: 'Tiếng Việt',
+    th: 'ไทย', nl: 'Nederlands', pl: 'Polski', sv: 'Svenska', tl: 'Filipino', ms: 'Melayu'
+  }
+  return names[code] || code
+}
 
 const formatCurrency = (val) => {
   const num = parseInt(val) || 0
@@ -71,24 +105,24 @@ const toggleFaq = (index) => {
   activeFaq.value = activeFaq.value === index ? null : index
 }
 
-const faqs = [
+const faqs = computed(() => [
   {
-    q: 'Apakah data invoice saya disimpan di server?',
-    a: 'Sama sekali tidak. Aplikasi kami berjalan 100% di sisi klien (browser Anda). Seluruh data input, logo, dan informasi keuangan diproses di memori browser lokal Anda secara privat. Kami tidak mengumpulkan, menyimpan, atau melihat data invoice Anda.'
+    q: t.value.faqQ1,
+    a: t.value.faqA1
   },
   {
-    q: 'Bagaimana cara kerja fitur kirim email otomatis?',
-    a: 'Aplikasi mengintegrasikan Resend API secara langsung dari browser Anda. Anda cukup memasukkan Resend API Key Anda sendiri (yang disimpan dengan aman di local storage browser Anda). Email dikirim menggunakan akun Resend Anda sendiri sehingga reputasi pengiriman dan domain berada di bawah kendali penuh Anda.'
+    q: t.value.faqQ2,
+    a: t.value.faqA2
   },
   {
-    q: 'Apakah ekspor PDF & Word mendukung kustomisasi penuh?',
-    a: 'Ya! Ekspor PDF dan Word kami dirancang secara profesional dengan dukungan margin dinamis, tabel item multi-kolom otomatis, perhitungan pajak (PPN), diskon, informasi rekening bank, tanda tangan digital, serta pilihan warna aksen branding perusahaan Anda.'
+    q: t.value.faqQ3,
+    a: t.value.faqA3
   },
   {
-    q: 'Apakah layanan Kaduin ini berbayar?',
-    a: 'Layanan pembuat invoice ini 100% gratis untuk digunakan secara offline/client-side tanpa batasan jumlah invoice yang dibuat. Kami berencana merilis paket Pro di masa mendatang bagi pengguna yang membutuhkan sinkronisasi cloud, kolaborasi tim, dan pelacakan invoice otomatis.'
+    q: t.value.faqQ4,
+    a: t.value.faqA4
   }
-]
+])
 </script>
 
 <template>
@@ -112,35 +146,61 @@ const faqs = [
 
         <!-- Desktop Nav -->
         <nav class="hidden md:flex items-center gap-8">
-          <button @click="scrollTo('features')" class="text-sm font-medium text-[#1F3A5F]/80 hover:text-[#1F3A5F] transition-colors cursor-pointer">Fitur Utama</button>
-          <button @click="scrollTo('demo')" class="text-sm font-medium text-[#1F3A5F]/80 hover:text-[#1F3A5F] transition-colors cursor-pointer">Live Preview</button>
-          <button @click="scrollTo('pricing')" class="text-sm font-medium text-[#1F3A5F]/80 hover:text-[#1F3A5F] transition-colors cursor-pointer">Harga</button>
-          <button @click="scrollTo('faq')" class="text-sm font-medium text-[#1F3A5F]/80 hover:text-[#1F3A5F] transition-colors cursor-pointer">Tanya Jawab</button>
+          <button @click="scrollTo('features')" class="text-sm font-medium text-[#1F3A5F]/80 hover:text-[#1F3A5F] transition-colors cursor-pointer">{{ t.features }}</button>
+          <button @click="scrollTo('demo')" class="text-sm font-medium text-[#1F3A5F]/80 hover:text-[#1F3A5F] transition-colors cursor-pointer">{{ t.demo }}</button>
+          <button @click="scrollTo('pricing')" class="text-sm font-medium text-[#1F3A5F]/80 hover:text-[#1F3A5F] transition-colors cursor-pointer">{{ t.pricing }}</button>
+          <button @click="scrollTo('faq')" class="text-sm font-medium text-[#1F3A5F]/80 hover:text-[#1F3A5F] transition-colors cursor-pointer">{{ t.faq }}</button>
         </nav>
 
-        <!-- CTA Button -->
+        <!-- CTA Button & Language selector -->
         <div class="hidden md:flex items-center gap-4">
+          <!-- Language Selector -->
+          <div class="relative inline-block text-left">
+            <button @click="langMenuOpen = !langMenuOpen" class="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold text-[#1F3A5F] border border-[#1F3A5F]/10 bg-white hover:bg-slate-50 transition-colors cursor-pointer">
+              <span>🌐</span>
+              <span class="uppercase">{{ currentLang }}</span>
+            </button>
+            <div v-if="langMenuOpen" class="absolute right-0 mt-2 w-40 max-h-64 overflow-y-auto rounded-xl bg-white border border-[#1F3A5F]/15 shadow-xl py-1 z-[100]">
+              <button v-for="l in ['id', 'en', 'zh', 'ja', 'ko', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ar', 'hi', 'tr', 'vi', 'th', 'nl', 'pl', 'sv', 'tl', 'ms']" :key="l" @click="changeLanguage(l); langMenuOpen = false" class="flex items-center w-full px-3 py-1.5 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer">
+                <span class="mr-2">{{ getLangFlag(l) }}</span>
+                <span>{{ getLangName(l) }}</span>
+              </button>
+            </div>
+          </div>
           <a :href="appUrl" class="inline-flex items-center justify-center px-5 py-2.5 rounded-xl text-sm font-semibold text-white bg-[#1F3A5F] hover:bg-[#1F3A5F]/95 hover:shadow-lg hover:shadow-[#1F3A5F]/20 transition-all duration-300">
-            Mulai Buat Invoice
+            {{ t.startCreating }}
             <ArrowRight class="w-4 h-4 ml-2" />
           </a>
         </div>
 
-        <!-- Mobile Menu Toggle -->
-        <button @click="mobileMenuOpen = !mobileMenuOpen" class="md:hidden p-2 rounded-lg text-[#1F3A5F] hover:bg-slate-100 transition-colors">
-          <Menu v-if="!mobileMenuOpen" class="w-6 h-6" />
-          <X v-else class="w-6 h-6" />
-        </button>
+        <!-- Mobile Menu Toggle & Mobile Lang Selector -->
+        <div class="flex items-center gap-2 md:hidden">
+          <div class="relative inline-block text-left">
+            <button @click="langMenuOpen = !langMenuOpen" class="inline-flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-bold text-[#1F3A5F] border border-[#1F3A5F]/10 bg-white hover:bg-slate-50 transition-colors">
+              <span>🌐</span>
+            </button>
+            <div v-if="langMenuOpen" class="absolute right-0 mt-2 w-40 max-h-64 overflow-y-auto rounded-xl bg-white border border-[#1F3A5F]/15 shadow-xl py-1 z-[100]">
+              <button v-for="l in ['id', 'en', 'zh', 'ja', 'ko', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ar', 'hi', 'tr', 'vi', 'th', 'nl', 'pl', 'sv', 'tl', 'ms']" :key="l" @click="changeLanguage(l); langMenuOpen = false" class="flex items-center w-full px-3 py-1.5 text-left text-xs font-bold text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer">
+                <span class="mr-2">{{ getLangFlag(l) }}</span>
+                <span>{{ getLangName(l) }}</span>
+              </button>
+            </div>
+          </div>
+          <button @click="mobileMenuOpen = !mobileMenuOpen" class="p-2 rounded-lg text-[#1F3A5F] hover:bg-slate-100 transition-colors">
+            <Menu v-if="!mobileMenuOpen" class="w-6 h-6" />
+            <X v-else class="w-6 h-6" />
+          </button>
+        </div>
       </div>
 
       <!-- Mobile Navigation Drawer -->
-      <div v-if="mobileMenuOpen" class="md:hidden border-t border-[#1F3A5F]/10 bg-white/95 backdrop-blur-lg px-4 pt-4 pb-6 space-y-3">
-        <button @click="scrollTo('features')" class="block w-full text-left py-2.5 px-3 rounded-lg text-base font-semibold text-[#1F3A5F]/80 hover:bg-slate-50 hover:text-[#1F3A5F]">Fitur Utama</button>
-        <button @click="scrollTo('demo')" class="block w-full text-left py-2.5 px-3 rounded-lg text-base font-semibold text-[#1F3A5F]/80 hover:bg-slate-50 hover:text-[#1F3A5F]">Live Preview</button>
-        <button @click="scrollTo('pricing')" class="block w-full text-left py-2.5 px-3 rounded-lg text-base font-semibold text-[#1F3A5F]/80 hover:bg-slate-50 hover:text-[#1F3A5F]">Harga</button>
-        <button @click="scrollTo('faq')" class="block w-full text-left py-2.5 px-3 rounded-lg text-base font-semibold text-[#1F3A5F]/80 hover:bg-slate-50 hover:text-[#1F3A5F]">Tanya Jawab</button>
+      <div v-if="mobileMenuOpen" class="md:hidden border-t border-[#1F3A5F]/10 bg-white/95 backdrop-blur-lg px-4 pt-4 pb-6 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+        <button @click="scrollTo('features')" class="block w-full text-left py-2.5 px-3 rounded-lg text-base font-semibold text-[#1F3A5F]/80 hover:bg-slate-50 hover:text-[#1F3A5F]">{{ t.features }}</button>
+        <button @click="scrollTo('demo')" class="block w-full text-left py-2.5 px-3 rounded-lg text-base font-semibold text-[#1F3A5F]/80 hover:bg-slate-50 hover:text-[#1F3A5F]">{{ t.demo }}</button>
+        <button @click="scrollTo('pricing')" class="block w-full text-left py-2.5 px-3 rounded-lg text-base font-semibold text-[#1F3A5F]/80 hover:bg-slate-50 hover:text-[#1F3A5F]">{{ t.pricing }}</button>
+        <button @click="scrollTo('faq')" class="block w-full text-left py-2.5 px-3 rounded-lg text-base font-semibold text-[#1F3A5F]/80 hover:bg-slate-50 hover:text-[#1F3A5F]">{{ t.faq }}</button>
         <a :href="appUrl" class="block w-full text-center py-3 px-4 rounded-xl text-base font-bold text-white bg-[#1F3A5F]">
-          Mulai Buat Invoice
+          {{ t.startCreating }}
         </a>
       </div>
     </header>
@@ -154,45 +214,45 @@ const faqs = [
           <div class="lg:col-span-7 flex flex-col items-start text-left space-y-6">
             
             <!-- Sparkles Badge -->
-            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold text-[#1F3A5F] bg-[#1F3A5F]/5 border border-[#1F3A5F]/10">
+            <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold text-[#1F3A5F] bg-[#1F3A5F]/5 border border-[#1F3A5F]/10 animate-fade-in">
               <Sparkles class="w-3.5 h-3.5 text-[#10B981]" />
-              <span>100% Client-Side & Tanpa Registrasi</span>
+              <span>{{ t.clientSideBadge }}</span>
             </div>
 
             <!-- Main Heading -->
             <h1 class="text-4xl sm:text-5xl lg:text-6xl tracking-tight text-[#1F3A5F] font-display font-black leading-[1.1] max-w-2xl">
-              Kirim Invoice Profesional, <span class="bg-gradient-to-r from-[#1F3A5F] via-[#3B6FA0] to-[#10B981] bg-clip-text text-transparent">Lebih Cepat & Otomatis.</span>
+              {{ t.heroTitle1 }} <span class="bg-gradient-to-r from-[#1F3A5F] via-[#3B6FA0] to-[#10B981] bg-clip-text text-transparent">{{ t.heroTitleAccent }}</span>
             </h1>
 
             <!-- Subtitle -->
             <p class="text-base sm:text-lg text-[#1F3A5F]/70 max-w-xl leading-relaxed">
-              Satu platform instan untuk membuat, mengkustomisasi warna branding, ekspor ke berkas PDF/DOCX berkualitas tinggi, dan mengirim langsung ke email klien Anda secara otomatis.
+              {{ t.heroSub }}
             </p>
 
             <!-- Actions buttons -->
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto">
               <a :href="appUrl" class="inline-flex items-center justify-center px-8 py-4 rounded-2xl text-base font-bold text-white bg-[#1F3A5F] shadow-xl shadow-[#1F3A5F]/15 hover:bg-[#1F3A5F]/95 hover:-translate-y-0.5 hover:shadow-2xl hover:shadow-[#1F3A5F]/20 transition-all duration-300">
-                Mulai Buat Invoice
+                {{ t.startCreating }}
                 <ArrowRight class="w-5 h-5 ml-2.5" />
               </a>
               <button @click="scrollTo('demo')" class="inline-flex items-center justify-center px-8 py-4 rounded-2xl text-base font-semibold text-[#1F3A5F] bg-white border border-[#1F3A5F]/15 hover:bg-slate-50 transition-all duration-200 cursor-pointer">
-                Lihat Demo
+                {{ t.watchDemo }}
               </button>
             </div>
 
             <!-- Minimalist Stats -->
             <div class="pt-8 border-t border-[#1F3A5F]/10 w-full max-w-lg grid grid-cols-3 gap-6 sm:gap-8">
               <div>
-                <p class="text-2xl sm:text-3xl font-extrabold text-[#1F3A5F] font-display">&lt; 30d</p>
-                <p class="text-xs font-semibold uppercase tracking-wider text-[#1F3A5F]/55">Pembuatan</p>
+                <p class="text-2xl sm:text-3xl font-extrabold text-[#1F3A5F] font-display">{{ t.statTime }}</p>
+                <p class="text-xs font-semibold uppercase tracking-wider text-[#1F3A5F]/55">{{ t.statTimeDesc }}</p>
               </div>
               <div>
-                <p class="text-2xl sm:text-3xl font-extrabold text-[#10B981] font-display">100%</p>
-                <p class="text-xs font-semibold uppercase tracking-wider text-[#1F3A5F]/55">Data Aman</p>
+                <p class="text-2xl sm:text-3xl font-extrabold text-[#10B981] font-display">{{ t.statSecure }}</p>
+                <p class="text-xs font-semibold uppercase tracking-wider text-[#1F3A5F]/55">{{ t.statSecureDesc }}</p>
               </div>
               <div>
-                <p class="text-2xl sm:text-3xl font-extrabold text-[#1F3A5F] font-display">Rp 0</p>
-                <p class="text-xs font-semibold uppercase tracking-wider text-[#1F3A5F]/55">Biaya Bulanan</p>
+                <p class="text-2xl sm:text-3xl font-extrabold text-[#1F3A5F] font-display">{{ t.statCost }}</p>
+                <p class="text-xs font-semibold uppercase tracking-wider text-[#1F3A5F]/55">{{ t.statCostDesc }}</p>
               </div>
             </div>
 
@@ -214,7 +274,7 @@ const faqs = [
                   <span class="w-3 h-3 rounded-full bg-yellow-400"></span>
                   <span class="w-3 h-3 rounded-full bg-green-400"></span>
                 </div>
-                <div class="text-xs font-bold text-[#1F3A5F]/60 font-display uppercase tracking-wider">Dashboard Invoice</div>
+                <div class="text-xs font-bold text-[#1F3A5F]/60 font-display uppercase tracking-wider">{{ t.brandName }} Dashboard</div>
                 <div class="w-6"></div>
               </div>
 
@@ -225,7 +285,7 @@ const faqs = [
                 <div class="p-3 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-between">
                   <div class="flex items-center gap-2">
                     <Palette class="w-4 h-4 text-[#1F3A5F]" />
-                    <span class="text-xs font-semibold text-[#1F3A5F]/85">Warna Aksen Brand</span>
+                    <span class="text-xs font-semibold text-[#1F3A5F]/85">{{ t.demoLabelColor }}</span>
                   </div>
                   <div class="flex gap-1">
                     <span class="w-4 h-4 rounded-full bg-[#1F3A5F] border border-white shadow-sm"></span>
@@ -237,15 +297,15 @@ const faqs = [
                 <!-- Input Mockups -->
                 <div class="space-y-2.5">
                   <div class="h-8.5 rounded-lg bg-slate-50 border border-slate-100 px-3 flex items-center justify-between">
-                    <span class="text-[11px] font-semibold text-slate-400">Nomor Invoice</span>
+                    <span class="text-[11px] font-semibold text-slate-400">{{ t.referenceNo }}</span>
                     <span class="text-[11px] font-bold text-[#1F3A5F]">INV-2026-004</span>
                   </div>
                   <div class="h-8.5 rounded-lg bg-slate-50 border border-slate-100 px-3 flex items-center justify-between">
-                    <span class="text-[11px] font-semibold text-slate-400">Klien</span>
+                    <span class="text-[11px] font-semibold text-slate-400">{{ t.tabClient }}</span>
                     <span class="text-[11px] font-bold text-[#1F3A5F]">Budi Santoso</span>
                   </div>
                   <div class="h-8.5 rounded-lg bg-slate-50 border border-slate-100 px-3 flex items-center justify-between">
-                    <span class="text-[11px] font-semibold text-slate-400">Total Tagihan</span>
+                    <span class="text-[11px] font-semibold text-slate-400">{{ t.previewTotal.replace(':','') }}</span>
                     <span class="text-[11px] font-bold text-[#10B981]">Rp 12.500.000</span>
                   </div>
                 </div>
@@ -254,16 +314,16 @@ const faqs = [
                 <div class="pt-4 border-t border-slate-100 space-y-2">
                   <button @click="simulateSendEmail" class="w-full h-10 rounded-xl bg-[#1F3A5F] hover:bg-[#1F3A5F]/95 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer">
                     <Send class="w-3.5 h-3.5" />
-                    Kirim ke Klien (Resend API)
+                    {{ t.sendEmail }} (Resend API)
                   </button>
                   <div class="grid grid-cols-2 gap-2">
                     <div class="h-9.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[11px] font-bold flex items-center justify-center gap-1.5">
                       <Download class="w-3.5 h-3.5 text-red-500" />
-                      Export PDF
+                      {{ t.downloadPdf }}
                     </div>
                     <div class="h-9.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-[11px] font-bold flex items-center justify-center gap-1.5">
                       <Download class="w-3.5 h-3.5 text-blue-500" />
-                      Export Word
+                      {{ t.downloadWord }}
                     </div>
                   </div>
                 </div>
@@ -280,8 +340,7 @@ const faqs = [
                   <div v-if="emailPreviewSent" class="absolute -bottom-4 left-6 right-6 p-3 rounded-xl bg-emerald-500 text-white flex items-center gap-2.5 shadow-lg shadow-emerald-500/20">
                     <CheckCircle2 class="w-5 h-5 shrink-0" />
                     <div class="text-[11px] leading-tight text-left">
-                      <p class="font-extrabold">Invoice Terkirim!</p>
-                      <p class="text-white/80">Klien menerima email + lampiran PDF.</p>
+                      <p class="font-extrabold">{{ t.toastEmailSuccess }}</p>
                     </div>
                   </div>
                 </Transition>
@@ -298,23 +357,23 @@ const faqs = [
     <!-- TRUST / PARTNER SECTION -->
     <section class="py-12 border-y border-[#1F3A5F]/10 bg-white/40 backdrop-blur-xs">
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-        <p class="text-xs font-bold tracking-widest text-[#1F3A5F]/55 uppercase mb-6">Cocok untuk Kebutuhan Operasional Bisnis Anda</p>
+        <p class="text-xs font-bold tracking-widest text-[#1F3A5F]/55 uppercase mb-6">{{ t.trustTitle }}</p>
         <div class="flex flex-wrap items-center justify-center gap-x-12 gap-y-6 grayscale opacity-65">
           <div class="flex items-center gap-2 text-[#1F3A5F]">
             <Zap class="w-5 h-5 text-[#10B981]" />
-            <span class="font-display font-black tracking-tight text-lg">Freelancer</span>
+            <span class="font-display font-black tracking-tight text-lg">{{ t.freelancer }}</span>
           </div>
           <div class="flex items-center gap-2 text-[#1F3A5F]">
             <Shield class="w-5 h-5 text-[#1F3A5F]" />
-            <span class="font-display font-black tracking-tight text-lg">Agensi Kreatif</span>
+            <span class="font-display font-black tracking-tight text-lg">{{ t.agency }}</span>
           </div>
           <div class="flex items-center gap-2 text-[#1F3A5F]">
             <Lock class="w-5 h-5 text-[#10B981]" />
-            <span class="font-display font-black tracking-tight text-lg">UMKM Mandiri</span>
+            <span class="font-display font-black tracking-tight text-lg">{{ t.umkm }}</span>
           </div>
           <div class="flex items-center gap-2 text-[#1F3A5F]">
             <FileSpreadsheet class="w-5 h-5 text-[#1F3A5F]" />
-            <span class="font-display font-black tracking-tight text-lg">Konsultan</span>
+            <span class="font-display font-black tracking-tight text-lg">{{ t.consultant }}</span>
           </div>
         </div>
       </div>
@@ -327,10 +386,10 @@ const faqs = [
         <!-- Header -->
         <div class="text-center max-w-3xl mx-auto mb-16 space-y-4">
           <h2 class="text-3xl sm:text-4xl lg:text-5xl font-black text-[#1F3A5F] tracking-tight">
-            Fitur Lengkap untuk Produktivitas Maksimal
+            {{ t.featuresTitle }}
           </h2>
           <p class="text-base sm:text-lg text-[#1F3A5F]/70 leading-relaxed">
-            Tidak hanya sekadar menulis angka, platform kami mempermudah seluruh siklus pembuatan invoice Anda dengan estetika kelas premium.
+            {{ t.featuresSub }}
           </p>
         </div>
 
@@ -343,16 +402,16 @@ const faqs = [
               <div class="w-12 h-12 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-500">
                 <Palette class="w-6 h-6" />
               </div>
-              <h3 class="text-xl sm:text-2xl font-bold text-[#1F3A5F]">Kustomisasi Warna Aksen & Logo</h3>
+              <h3 class="text-xl sm:text-2xl font-bold text-[#1F3A5F]">{{ t.bento1Title }}</h3>
               <p class="text-sm sm:text-base text-[#1F3A5F]/70 leading-relaxed">
-                Sesuaikan seluruh dokumen dengan warna identitas bisnis Anda hanya dengan sekali klik. Unggah logo resmi perusahaan Anda dan posisikan secara otomatis di lembar invoice.
+                {{ t.bento1Desc }}
               </p>
             </div>
             
             <!-- Graphic inside card -->
             <div class="mt-8 p-4 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center gap-3">
               <span v-for="c in colorPresets" :key="c" @click="selectedColor = c" :style="{ backgroundColor: c }" class="w-8 h-8 rounded-full border-2 cursor-pointer transition-transform duration-200 hover:scale-110" :class="selectedColor === c ? 'border-[#1F3A5F] scale-110 shadow-md' : 'border-transparent'"></span>
-              <span class="text-xs font-semibold text-slate-500 ml-2">Pilih Aksen Warna</span>
+              <span class="text-xs font-semibold text-slate-500 ml-2">{{ t.bento1Label }}</span>
             </div>
           </div>
 
@@ -362,14 +421,14 @@ const faqs = [
               <div class="w-12 h-12 rounded-2xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
                 <Shield class="w-6 h-6" />
               </div>
-              <h3 class="text-xl sm:text-2xl font-bold text-[#1F3A5F]">100% Aman & Privat</h3>
+              <h3 class="text-xl sm:text-2xl font-bold text-[#1F3A5F]">{{ t.bento2Title }}</h3>
               <p class="text-sm sm:text-base text-[#1F3A5F]/70 leading-relaxed">
-                Keamanan adalah prioritas kami. Semua data keuangan, jumlah tagihan, data klien, hingga tanda tangan diproses lokal. Tidak ada data yang di-upload ke server luar.
+                {{ t.bento2Desc }}
               </p>
             </div>
-            <div class="mt-8 flex items-center gap-3 text-emerald-500 font-bold text-xs">
+            <div class="mt-8 flex items-center gap-3 text-emerald-500 font-bold text-xs uppercase">
               <Lock class="w-5 h-5" />
-              <span>DIENKRIPSI DAN DIPROSES LOKAL DI BROWSER</span>
+              <span>{{ t.bento2Label }}</span>
             </div>
           </div>
 
@@ -379,14 +438,14 @@ const faqs = [
               <div class="w-12 h-12 rounded-2xl bg-blue-500/10 flex items-center justify-center text-blue-500">
                 <Mail class="w-6 h-6" />
               </div>
-              <h3 class="text-xl sm:text-2xl font-bold text-[#1F3A5F]">Pengiriman Email Instan</h3>
+              <h3 class="text-xl sm:text-2xl font-bold text-[#1F3A5F]">{{ t.bento3Title }}</h3>
               <p class="text-sm sm:text-base text-[#1F3A5F]/70 leading-relaxed">
-                Kirim invoice langsung ke email klien dengan integrasi Resend API. Email yang dikirimkan profesional dengan layout premium dan file PDF invoice terlampir otomatis.
+                {{ t.bento3Desc }}
               </p>
             </div>
             <div class="mt-8 p-3.5 rounded-2xl bg-slate-50 border border-slate-100 flex items-center gap-2">
               <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span class="text-xs font-semibold text-slate-500">Resend API client terintegrasi</span>
+              <span class="text-xs font-semibold text-slate-500">{{ t.bento3Label }}</span>
             </div>
           </div>
 
@@ -396,19 +455,19 @@ const faqs = [
               <div class="w-12 h-12 rounded-2xl bg-indigo-500/10 flex items-center justify-center text-indigo-500">
                 <Download class="w-6 h-6" />
               </div>
-              <h3 class="text-xl sm:text-2xl font-bold text-[#1F3A5F]">Ekspor ke PDF & DOCX (Word)</h3>
+              <h3 class="text-xl sm:text-2xl font-bold text-[#1F3A5F]">{{ t.bento4Title }}</h3>
               <p class="text-sm sm:text-base text-[#1F3A5F]/70 leading-relaxed">
-                Butuh arsip cetak atau ingin melakukan perubahan dokumen secara manual? Dapatkan berkas PDF berkualitas tinggi atau dokumen Word (DOCX) yang sepenuhnya terformat dengan rapi untuk diedit lebih lanjut di Word.
+                {{ t.bento4Desc }}
               </p>
             </div>
             <div class="mt-8 flex gap-4">
               <div class="flex items-center gap-2 py-2 px-4 rounded-xl bg-red-50 text-red-600 text-xs font-bold">
                 <FileText class="w-4 h-4" />
-                <span>Format PDF Resmi</span>
+                <span>{{ t.bento4Label1 }}</span>
               </div>
               <div class="flex items-center gap-2 py-2 px-4 rounded-xl bg-blue-50 text-blue-600 text-xs font-bold">
                 <FileSpreadsheet class="w-4 h-4" />
-                <span>Format DOCX Editable</span>
+                <span>{{ t.bento4Label2 }}</span>
               </div>
             </div>
           </div>
@@ -425,10 +484,10 @@ const faqs = [
         <!-- Header -->
         <div class="text-center max-w-3xl mx-auto mb-16 space-y-4">
           <h2 class="text-3xl sm:text-4xl lg:text-5xl font-black text-[#1F3A5F] tracking-tight">
-            Coba Interaktif: Tulis & Lihat Perubahannya!
+            {{ t.demoTitle }}
           </h2>
           <p class="text-base sm:text-lg text-[#1F3A5F]/70 leading-relaxed">
-            Ketik data perusahaan Anda di kolom bawah ini dan saksikan perubahan layout serta kustomisasi warna secara *real-time* di sisi kanan.
+            {{ t.demoSub }}
           </p>
         </div>
 
@@ -441,25 +500,25 @@ const faqs = [
               
               <!-- Input 1 -->
               <div class="space-y-2">
-                <label class="text-xs font-bold uppercase tracking-wider text-[#1F3A5F]/70">Nama Perusahaan Anda</label>
+                <label class="text-xs font-bold uppercase tracking-wider text-[#1F3A5F]/70">{{ t.demoLabelCompany }}</label>
                 <input v-model="companyName" type="text" class="w-full h-11 px-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1F3A5F] text-sm text-[#1F3A5F] font-semibold transition-all" />
               </div>
 
               <!-- Input 2 -->
               <div class="space-y-2">
-                <label class="text-xs font-bold uppercase tracking-wider text-[#1F3A5F]/70">Nama Klien</label>
+                <label class="text-xs font-bold uppercase tracking-wider text-[#1F3A5F]/70">{{ t.demoLabelClient }}</label>
                 <input v-model="clientName" type="text" class="w-full h-11 px-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1F3A5F] text-sm text-[#1F3A5F] font-semibold transition-all" />
               </div>
 
               <!-- Input 3 -->
               <div class="space-y-2">
-                <label class="text-xs font-bold uppercase tracking-wider text-[#1F3A5F]/70">Total Tagihan (Rp)</label>
+                <label class="text-xs font-bold uppercase tracking-wider text-[#1F3A5F]/70">{{ t.demoLabelTotal }}</label>
                 <input v-model="invoiceTotal" type="number" class="w-full h-11 px-4 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-[#1F3A5F] text-sm text-[#1F3A5F] font-semibold transition-all" />
               </div>
 
               <!-- Theme Color Selector -->
               <div class="space-y-3">
-                <label class="text-xs font-bold uppercase tracking-wider text-[#1F3A5F]/70">Tema Warna Invoice</label>
+                <label class="text-xs font-bold uppercase tracking-wider text-[#1F3A5F]/70">{{ t.demoLabelColor }}</label>
                 <div class="flex gap-2.5">
                   <span v-for="c in colorPresets" :key="c" @click="selectedColor = c" :style="{ backgroundColor: c }" class="w-7 h-7 rounded-full border-2 cursor-pointer transition-transform duration-200 hover:scale-110" :class="selectedColor === c ? 'border-slate-800 scale-110 shadow-sm' : 'border-transparent'"></span>
                 </div>
@@ -470,7 +529,7 @@ const faqs = [
             <!-- CTA directly into App -->
             <div class="pt-6 border-t border-slate-100">
               <a :href="appUrl" class="w-full inline-flex items-center justify-center px-6 py-3.5 rounded-xl text-sm font-bold text-white bg-[#1F3A5F] hover:bg-[#1F3A5F]/95 hover:shadow-lg transition-all duration-300">
-                Gunakan Editor Lengkap
+                {{ t.demoUseFullEditor }}
                 <ArrowRight class="w-4 h-4 ml-2" />
               </a>
             </div>
@@ -480,7 +539,7 @@ const faqs = [
           <div class="lg:col-span-7 relative flex justify-center">
             
             <!-- Real-time Interactive Mini-Invoice Paper mockup -->
-            <div class="w-full max-w-[500px] rounded-3xl border border-[#1F3A5F]/10 bg-white shadow-xl overflow-hidden flex flex-col justify-between transition-all duration-300 hover:shadow-2xl">
+            <div class="w-full max-w-[500px] rounded-3xl border border-[#1F3A5F]/10 bg-white shadow-xl overflow-hidden flex flex-col justify-between transition-all duration-300 hover:shadow-2xl text-left">
               
               <!-- Color Header Accent Strip -->
               <div class="h-3 transition-colors duration-500" :style="{ backgroundColor: selectedColor }"></div>
@@ -492,10 +551,10 @@ const faqs = [
                 <div class="flex justify-between items-start">
                   <div>
                     <h4 class="text-base font-black tracking-tight text-[#1F3A5F] font-display transition-all duration-300">{{ companyName || 'PT Nama Perusahaan' }}</h4>
-                    <p class="text-slate-500 text-[10px] mt-1">Jakarta, Indonesia</p>
+                    <p class="text-slate-500 text-[10px] mt-1">{{ t.demoAddressText }}</p>
                   </div>
                   <div class="text-right">
-                    <span class="text-lg font-black tracking-tight font-display transition-colors duration-500" :style="{ color: selectedColor }">INVOICE</span>
+                    <span class="text-lg font-black tracking-tight font-display transition-colors duration-500" :style="{ color: selectedColor }">{{ t.previewInvoiceTitle }}</span>
                     <p class="text-slate-500 text-[10px] mt-1">{{ invoiceNumber }}</p>
                   </div>
                 </div>
@@ -503,11 +562,11 @@ const faqs = [
                 <!-- Info Grid -->
                 <div class="grid grid-cols-2 gap-4 py-4 border-y border-slate-100">
                   <div>
-                    <p class="font-bold text-slate-400 uppercase text-[9px] tracking-wider mb-1">Ditujukan Kepada:</p>
+                    <p class="font-bold text-slate-400 uppercase text-[9px] tracking-wider mb-1">{{ t.clientInfoTitle }}</p>
                     <p class="font-bold text-[#1F3A5F] text-[11px] transition-all duration-300">{{ clientName || 'Nama Klien Anda' }}</p>
                   </div>
                   <div>
-                    <p class="font-bold text-slate-400 uppercase text-[9px] tracking-wider mb-1">Tanggal Jatuh Tempo:</p>
+                    <p class="font-bold text-slate-400 uppercase text-[9px] tracking-wider mb-1">{{ t.invoiceDueDate }}</p>
                     <p class="font-bold text-[#1F3A5F] text-[11px]">02/08/2026</p>
                   </div>
                 </div>
@@ -515,13 +574,13 @@ const faqs = [
                 <!-- Items Table (Mocked) -->
                 <div class="space-y-2">
                   <div class="flex justify-between font-bold text-slate-400 uppercase text-[9px] tracking-wider pb-1 border-b border-slate-100">
-                    <span>Deskripsi Layanan</span>
-                    <span>Total</span>
+                    <span>{{ t.productNameLabel }}</span>
+                    <span>{{ t.previewTotal.replace(':','') }}</span>
                   </div>
                   <div class="flex justify-between items-center text-[10.5px]">
                     <div>
-                      <p class="font-bold text-[#1F3A5F]">Pengembangan Website & Branding</p>
-                      <p class="text-slate-400 text-[9px]">Layanan profesional bulan Juli</p>
+                      <p class="font-bold text-[#1F3A5F]">{{ t.demoItemName }}</p>
+                      <p class="text-slate-400 text-[9px]">{{ t.demoItemDesc }}</p>
                     </div>
                     <span class="font-bold text-[#1F3A5F]">{{ formatCurrency(invoiceTotal) }}</span>
                   </div>
@@ -530,11 +589,11 @@ const faqs = [
                 <!-- Calculations -->
                 <div class="border-t border-slate-100 pt-3 flex flex-col items-end space-y-1.5 text-[11px]">
                   <div class="flex justify-between w-full max-w-[200px] text-slate-500">
-                    <span>Subtotal:</span>
+                    <span>{{ t.demoSubtotal }}</span>
                     <span>{{ formatCurrency(invoiceTotal) }}</span>
                   </div>
                   <div class="flex justify-between w-full max-w-[200px] font-black text-sm text-[#1F3A5F]">
-                    <span>Total Tagihan:</span>
+                    <span>{{ t.demoTotal }}</span>
                     <span class="transition-colors duration-500" :style="{ color: selectedColor }">{{ formatCurrency(invoiceTotal) }}</span>
                   </div>
                 </div>
@@ -543,7 +602,7 @@ const faqs = [
 
               <!-- Paper Footer -->
               <div class="px-6 py-4.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400">
-                <span>Terima kasih atas kerja samanya.</span>
+                <span>{{ t.demoFooterText }}</span>
                 <span class="font-bold text-[#1F3A5F]">KADUIN Invoice</span>
               </div>
 
@@ -563,10 +622,10 @@ const faqs = [
         <!-- Header -->
         <div class="text-center max-w-3xl mx-auto mb-16 space-y-4">
           <h2 class="text-3xl sm:text-4xl lg:text-5xl font-black text-[#1F3A5F] tracking-tight">
-            Pilih Paket Sesuai Kebutuhan Bisnis Anda
+            {{ t.priceTitle }}
           </h2>
           <p class="text-base sm:text-lg text-[#1F3A5F]/70 leading-relaxed">
-            Mulai buat invoice secara instan tanpa biaya sepeser pun, atau nantikan paket kolaborasi premium kami.
+            {{ t.priceSub }}
           </p>
         </div>
 
@@ -574,95 +633,95 @@ const faqs = [
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto items-stretch">
           
           <!-- Free Tier -->
-          <div class="rounded-3xl border border-[#1F3A5F]/15 bg-white p-8 flex flex-col justify-between shadow-lg relative overflow-hidden">
+          <div class="rounded-3xl border border-[#1F3A5F]/15 bg-white p-8 flex flex-col justify-between shadow-lg relative overflow-hidden text-left">
             <div class="space-y-6">
               <div>
-                <h3 class="text-xl font-bold text-[#1F3A5F]">Free Tier (Client-Side)</h3>
-                <p class="text-sm text-slate-500 mt-1">Sangat cocok untuk Freelancer & UMKM Mandiri</p>
+                <h3 class="text-xl font-bold text-[#1F3A5F]">{{ t.freeTitle }}</h3>
+                <p class="text-sm text-slate-500 mt-1">{{ t.freeSub }}</p>
               </div>
               <div class="flex items-baseline">
-                <span class="text-4xl font-extrabold text-[#1F3A5F] font-display">Rp 0</span>
-                <span class="text-sm font-semibold text-slate-400 ml-1">/ selamanya</span>
+                <span class="text-4xl font-extrabold text-[#1F3A5F] font-display">{{ t.freePrice }}</span>
+                <span class="text-sm font-semibold text-slate-400 ml-1">{{ t.freePriceSub }}</span>
               </div>
               
               <!-- Features -->
               <ul class="space-y-3.5 text-sm text-[#1F3A5F]/85">
                 <li class="flex items-center gap-3">
                   <Check class="w-4.5 h-4.5 text-[#10B981] shrink-0" />
-                  <span>10x Trial Pembuatan & Unduh Invoice</span>
+                  <span>{{ t.freeFeature1 }}</span>
                 </li>
                 <li class="flex items-center gap-3">
                   <Check class="w-4.5 h-4.5 text-[#10B981] shrink-0" />
-                  <span>Ekspor PDF & Word (DOCX) kualitas tinggi</span>
+                  <span>{{ t.freeFeature2 }}</span>
                 </li>
                 <li class="flex items-center gap-3">
                   <Check class="w-4.5 h-4.5 text-[#10B981] shrink-0" />
-                  <span>Kustomisasi logo & warna branding penuh</span>
+                  <span>{{ t.freeFeature3 }}</span>
                 </li>
                 <li class="flex items-center gap-3 text-[#1F3A5F]/45 line-through">
                   <X class="w-4.5 h-4.5 text-red-400 shrink-0" />
-                  <span>Integrasi Resend API untuk kirim email langsung</span>
+                  <span>{{ t.freeFeature4 }}</span>
                 </li>
                 <li class="flex items-center gap-3">
                   <Check class="w-4.5 h-4.5 text-[#10B981] shrink-0" />
-                  <span>100% Data aman tersimpan lokal di browser</span>
+                  <span>{{ t.freeFeature5 }}</span>
                 </li>
               </ul>
             </div>
 
             <div class="pt-8">
-              <a :href="appUrl" class="w-full inline-flex items-center justify-center px-6 py-3.5 rounded-xl text-sm font-bold text-white bg-[#1F3A5F] hover:bg-[#1F3A5F]/95 transition-colors duration-200">
-                Mulai Gratis Sekarang
+              <a :href="appUrl" class="w-full inline-flex items-center justify-center px-6 py-3.5 rounded-xl text-sm font-bold text-white bg-[#1F3A5F] hover:bg-[#1F3A5F]/95 transition-colors duration-200 text-center">
+                {{ t.freeBtn }}
               </a>
             </div>
           </div>
 
-          <!-- Pro Tier (Coming soon) -->
-          <div class="rounded-3xl border border-violet-500/10 bg-slate-50 p-8 flex flex-col justify-between relative overflow-hidden">
+          <!-- Pro Tier (Coming soon/Simulated) -->
+          <div class="rounded-3xl border border-violet-500/10 bg-slate-50 p-8 flex flex-col justify-between relative overflow-hidden text-left">
             <div class="absolute -top-3 -right-3 w-28 h-28 rounded-full bg-violet-500/5 blur-xl"></div>
             
             <div class="space-y-6">
               <div class="flex justify-between items-start">
                 <div>
-                  <h3 class="text-xl font-bold text-[#1F3A5F]">Pro Tier</h3>
-                  <p class="text-sm text-slate-500 mt-1">Untuk Agensi & Tim yang sedang bertumbuh</p>
+                  <h3 class="text-xl font-bold text-[#1F3A5F]">{{ t.proTitle }}</h3>
+                  <p class="text-sm text-slate-500 mt-1">{{ t.proSub }}</p>
                 </div>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-violet-100 text-violet-700">COMING SOON</span>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-violet-100 text-violet-700">{{ t.proBtnSoon }}</span>
               </div>
               <div class="flex items-baseline">
-                <span class="text-4xl font-extrabold text-[#1F3A5F] font-display">Rp 25.000</span>
-                <span class="text-sm font-semibold text-slate-400 ml-1">/ bulan</span>
+                <span class="text-4xl font-extrabold text-[#1F3A5F] font-display">{{ t.proPrice }}</span>
+                <span class="text-sm font-semibold text-slate-400 ml-1">{{ t.proPriceSub }}</span>
               </div>
               
               <!-- Features -->
               <ul class="space-y-3.5 text-sm text-[#1F3A5F]/75">
                 <li class="flex items-center gap-3">
                   <Check class="w-4.5 h-4.5 text-violet-500 shrink-0" />
-                  <span>Unlimited Pembuatan & Unduh Invoice</span>
+                  <span>{{ t.proFeature1 }}</span>
                 </li>
                 <li class="flex items-center gap-3">
                   <Check class="w-4.5 h-4.5 text-violet-500 shrink-0" />
-                  <span>Kirim email otomatis via Resend API</span>
+                  <span>{{ t.proFeature2 }}</span>
                 </li>
                 <li class="flex items-center gap-3">
                   <Check class="w-4.5 h-4.5 text-violet-500 shrink-0" />
-                  <span>Sinkronisasi Cloud & Database Aman (Coming Soon)</span>
+                  <span>{{ t.proFeature3 }}</span>
                 </li>
                 <li class="flex items-center gap-3">
                   <Check class="w-4.5 h-4.5 text-violet-500 shrink-0" />
-                  <span>Multi-User & Kolaborasi Tim (Coming Soon)</span>
+                  <span>{{ t.proFeature4 }}</span>
                 </li>
                 <li class="flex items-center gap-3">
                   <Check class="w-4.5 h-4.5 text-violet-500 shrink-0" />
-                  <span>Dashboard analisis pendapatan & grafik (Coming Soon)</span>
+                  <span>{{ t.proFeature5 }}</span>
                 </li>
               </ul>
             </div>
 
             <div class="pt-8">
-              <button class="w-full inline-flex items-center justify-center px-6 py-3.5 rounded-xl text-sm font-bold text-slate-400 bg-slate-200/60 cursor-not-allowed" disabled>
-                Hubungi Kami
-              </button>
+              <a :href="appUrl" class="w-full inline-flex items-center justify-center px-6 py-3.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors duration-200 text-center">
+                {{ t.proBtnSoon }}
+              </a>
             </div>
           </div>
 
@@ -676,9 +735,9 @@ const faqs = [
         
         <!-- Header -->
         <div class="text-center mb-16 space-y-4">
-          <h2 class="text-3xl sm:text-4xl font-black text-[#1F3A5F] tracking-tight">Tanya Jawab (FAQ)</h2>
+          <h2 class="text-3xl sm:text-4xl font-black text-[#1F3A5F] tracking-tight">{{ t.faqTitle }}</h2>
           <p class="text-base text-[#1F3A5F]/70 leading-relaxed">
-            Menjawab segala pertanyaan Anda terkait keamanan, alur kerja, dan keandalan sistem invoice kami.
+            {{ t.faqSub }}
           </p>
         </div>
 
@@ -687,10 +746,12 @@ const faqs = [
           <div v-for="(item, idx) in faqs" :key="idx" class="rounded-2xl border border-[#1F3A5F]/10 bg-white overflow-hidden shadow-xs">
             <button @click="toggleFaq(idx)" class="w-full py-4.5 px-6 flex items-center justify-between font-bold text-[#1F3A5F] text-left text-sm sm:text-base hover:bg-slate-50/50 transition-colors cursor-pointer">
               <span>{{ item.q }}</span>
-              <ChevronRight class="w-5 h-5 text-slate-400 transition-transform duration-300" :class="activeFaq === idx ? 'transform rotate-90' : ''" />
+              <ChevronRight class="w-5 h-5 text-slate-400 transition-transform duration-300 font-bold" :class="activeFaq === idx ? 'transform rotate-90' : ''" />
             </button>
-            <div v-if="activeFaq === idx" class="px-6 pb-5 pt-1 text-xs sm:text-sm text-[#1F3A5F]/70 leading-relaxed border-t border-slate-50">
-              {{ item.a }}
+            <div class="transition-all duration-300 ease-in-out overflow-hidden" :style="{ maxHeight: activeFaq === idx ? '240px' : '0px', borderTop: activeFaq === idx ? '1px solid #f1f5f9' : '1px solid transparent' }">
+              <div class="px-6 pb-5 pt-3.5 text-xs sm:text-sm text-[#1F3A5F]/70 leading-relaxed text-left">
+                {{ item.a }}
+              </div>
             </div>
           </div>
         </div>
@@ -705,13 +766,13 @@ const faqs = [
       <div class="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-blue-500/15 blur-3xl"></div>
       
       <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10 space-y-6">
-        <h2 class="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight font-display">Siap Buat Invoice Pertama Anda?</h2>
+        <h2 class="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight font-display">{{ t.ctaTitle }}</h2>
         <p class="text-base sm:text-lg text-white/80 max-w-xl mx-auto leading-relaxed">
-          Mulai dalam hitungan detik. Cepat, aman, tanpa registrasi, dan 100% gratis.
+          {{ t.ctaSub }}
         </p>
         <div class="pt-4">
           <a :href="appUrl" class="inline-flex items-center justify-center px-8 py-4 rounded-2xl text-base font-bold text-[#1F3A5F] bg-white hover:bg-slate-50 hover:scale-[1.02] hover:shadow-2xl transition-all duration-300">
-            Mulai Buat Sekarang
+            {{ t.ctaBtn }}
             <ArrowRight class="w-5 h-5 ml-2.5 text-[#10B981]" />
           </a>
         </div>
@@ -733,10 +794,10 @@ const faqs = [
 
         <!-- Links -->
         <div class="flex gap-8 text-xs font-semibold text-[#1F3A5F]/65">
-          <button @click="scrollTo('features')" class="hover:text-[#1F3A5F] transition-colors cursor-pointer">Fitur</button>
-          <button @click="scrollTo('demo')" class="hover:text-[#1F3A5F] transition-colors cursor-pointer">Demo</button>
-          <button @click="scrollTo('pricing')" class="hover:text-[#1F3A5F] transition-colors cursor-pointer">Harga</button>
-          <button @click="scrollTo('faq')" class="hover:text-[#1F3A5F] transition-colors cursor-pointer">FAQ</button>
+          <button @click="scrollTo('features')" class="hover:text-[#1F3A5F] transition-colors cursor-pointer">{{ t.features }}</button>
+          <button @click="scrollTo('demo')" class="hover:text-[#1F3A5F] transition-colors cursor-pointer">{{ t.demo }}</button>
+          <button @click="scrollTo('pricing')" class="hover:text-[#1F3A5F] transition-colors cursor-pointer">{{ t.pricing }}</button>
+          <button @click="scrollTo('faq')" class="hover:text-[#1F3A5F] transition-colors cursor-pointer">{{ t.faq }}</button>
         </div>
 
       </div>
