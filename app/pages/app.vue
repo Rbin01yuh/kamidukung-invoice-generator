@@ -42,7 +42,7 @@ import {
   sendEmailViaResendClient
 } from '~/utils/email-config'
 
-import { translations, loadLanguage, saveLanguage } from '~/utils/translations'
+import { translations, loadLanguage, saveLanguage, getInitialLanguage } from '~/utils/translations'
 
 // Toast Notification System
 const toasts = ref([])
@@ -166,7 +166,7 @@ const MESSAGE_TEMPLATES = [
 // Invoice Auto-fill Presets
 const INVOICE_PRESETS = {
   company: [
-    { label: "KADUIN", name: "KADUIN", address: "Jl. Letnan Jenderal S. Parman No. 28, Jakarta Barat", phone: "+62 812 3456 7890", email: "finance@kaduin.com" },
+    { label: "KADUIN", name: "KADUIN", address: "Jl. Letnan Jenderal S. Parman No. 28, Jakarta Barat", phone: "+62 812 3456 7890", email: "finance@kaduin.my.id" },
     { label: "Kreatif Studio", name: "Kreatif Studio Indonesia", address: "Jl. Kemang Raya No. 45, Mampang Prapatan, Jakarta Selatan", phone: "+62 811 9988 7766", email: "hello@kreatifstudio.id" },
     { label: "Maju Jaya Solusindo", name: "PT Maju Jaya Solusindo", address: "Ruko Golden Boulevard Blk. E No. 12, Serpong, Tangerang Selatan", phone: "+62 21 5432 1098", email: "billing@majujayasolusindo.co.id" }
   ],
@@ -211,13 +211,19 @@ const signature = ref(undefined)
 const logoSize = ref(60)
 const signatureSize = ref(120)
 
-const currentLang = ref('id')
+const route = useRoute()
+const router = useRouter()
+const headers = useRequestHeaders(['accept-language'])
+
+const currentLang = useState('lang', () => getInitialLanguage(route.query, headers))
 const t = computed(() => translations[currentLang.value])
 const langMenuOpen = ref(false)
 
 const changeLanguage = (langCode) => {
   currentLang.value = langCode
   saveLanguage(langCode)
+  // Sync page language to URL queries
+  router.push({ query: { ...route.query, lang: langCode } })
 }
 
 const getLangFlag = (code) => {
@@ -247,7 +253,7 @@ const dueDate = ref(plusDaysIso(30))
 const companyName = ref('KADUIN')
 const companyAddress = ref('Jl. Letnan Jenderal S. Parman No. 28, Jakarta Barat')
 const companyPhone = ref('+62 812 3456 7890')
-const companyEmail = ref('finance@kaduin.com')
+const companyEmail = ref('finance@kaduin.my.id')
 
 const clientName = ref('PT Digital Nusantara')
 const clientAddress = ref('Sudirman Central Business District (SCBD) Lot 10, Jakarta Selatan')
@@ -437,7 +443,12 @@ const getQrCodeDataUrl = async (text) => {
 }
 
 onMounted(async () => {
-  currentLang.value = loadLanguage()
+  // If there's a saved language in localStorage and no route query parameter override, apply it
+  const saved = localStorage.getItem("app_lang")
+  const allLangs = ["id", "en", "zh", "ja", "ko", "es", "fr", "de", "it", "pt", "ru", "ar", "hi", "tr", "vi", "th", "nl", "pl", "sv", "tl", "ms"]
+  if (!route.query.lang && saved && allLangs.includes(saved) && saved !== currentLang.value) {
+    currentLang.value = saved
+  }
   resendKeyInput.value = getStoredResendKey()
   
   // Load selected font
@@ -743,6 +754,62 @@ const onSendEmail = async () => {
     busy.value = null
   }
 }
+
+// SEO & GEO targeting configuration for /app page
+const config = useRuntimeConfig()
+const siteUrl = config.public.appUrl || 'https://kaduin.my.id'
+
+const canonicalUrl = computed(() => {
+  const query = route.query.lang ? `?lang=${route.query.lang}` : ''
+  return `${siteUrl}/app${query}`
+})
+
+const titleText = computed(() => `${t.value.startCreating} — KADUIN`)
+const descText = computed(() => t.value.heroSub)
+
+useHead({
+  title: titleText,
+  htmlAttrs: {
+    lang: computed(() => currentLang.value)
+  },
+  meta: [
+    { name: 'description', content: descText },
+    // Open Graph
+    { property: 'og:title', content: titleText },
+    { property: 'og:description', content: descText },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:url', content: canonicalUrl },
+    { property: 'og:site_name', content: 'Kaduin' },
+    { property: 'og:locale', content: computed(() => {
+      const locales = {
+        id: 'id_ID', en: 'en_US', zh: 'zh_CN', ja: 'ja_JP', ko: 'ko_KR',
+        es: 'es_ES', fr: 'fr_FR', de: 'de_DE', it: 'it_IT', pt: 'pt_PT',
+        ru: 'ru_RU', ar: 'ar_AR', hi: 'hi_IN', tr: 'tr_TR', vi: 'vi_VN',
+        th: 'th_TH', nl: 'nl_NL', pl: 'pl_PL', sv: 'sv_SE', tl: 'tl_PH', ms: 'ms_MY'
+      }
+      return locales[currentLang.value] || 'id_ID'
+    }) },
+    // Twitter
+    { name: 'twitter:title', content: titleText },
+    { name: 'twitter:description', content: descText },
+    { name: 'twitter:url', content: canonicalUrl },
+    // GEO Targeting Meta Tags
+    { name: 'geo.region', content: 'ID-JK' },
+    { name: 'geo.placename', content: 'Jakarta, Indonesia' },
+    { name: 'geo.position', content: '-6.2088;106.8456' },
+    { name: 'ICBM', content: '-6.2088, 106.8456' }
+  ],
+  link: [
+    { rel: 'canonical', href: canonicalUrl },
+    // Alternate language links (hreflangs)
+    { rel: 'alternate', hreflang: 'x-default', href: `${siteUrl}/app` },
+    ...['id', 'en', 'zh', 'ja', 'ko', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ar', 'hi', 'tr', 'vi', 'th', 'nl', 'pl', 'sv', 'tl', 'ms'].map(lang => ({
+      rel: 'alternate',
+      hreflang: lang,
+      href: `${siteUrl}/app?lang=${lang}`
+    }))
+  ]
+})
 </script>
 
 <template>

@@ -18,9 +18,13 @@ import {
   FileSpreadsheet,
   CheckCircle2
 } from '@lucide/vue'
-import { translations, loadLanguage, saveLanguage } from '~/utils/translations'
+import { translations, loadLanguage, saveLanguage, getInitialLanguage } from '~/utils/translations'
 
-// App States
+// App States & Router/SSR Language synchronization
+const route = useRoute()
+const router = useRouter()
+const headers = useRequestHeaders(['accept-language'])
+
 const companyName = ref('PT Maju Jaya Kreatif')
 const clientName = ref('Budi Santoso')
 const invoiceTotal = ref('12500000')
@@ -30,17 +34,26 @@ const emailPreviewSent = ref(false)
 const mobileMenuOpen = ref(false)
 const langMenuOpen = ref(false)
 
-const currentLang = ref('id')
+// Use useState to share language state between server & client to avoid hydration mismatch
+const currentLang = useState('lang', () => getInitialLanguage(route.query, headers))
 const t = computed(() => translations[currentLang.value])
 
 onMounted(() => {
-  currentLang.value = loadLanguage()
+  // If there's a saved language in localStorage and no route query parameter override, apply it
+  const saved = localStorage.getItem("app_lang")
+  const allLangs = ["id", "en", "zh", "ja", "ko", "es", "fr", "de", "it", "pt", "ru", "ar", "hi", "tr", "vi", "th", "nl", "pl", "sv", "tl", "ms"]
+  if (!route.query.lang && saved && allLangs.includes(saved) && saved !== currentLang.value) {
+    currentLang.value = saved
+  }
 })
 
 const changeLanguage = (langCode) => {
   currentLang.value = langCode
   saveLanguage(langCode)
+  // Sync the language choice with the URL query parameter for crawlers
+  router.push({ query: { ...route.query, lang: langCode } })
 }
+
 
 const getLangFlag = (code) => {
   const flags = {
@@ -123,7 +136,116 @@ const faqs = computed(() => [
     a: t.value.faqA4
   }
 ])
+
+// SEO & GEO targeting configuration
+const config = useRuntimeConfig()
+const siteUrl = config.public.appUrl || 'https://kaduin.my.id'
+
+const canonicalUrl = computed(() => {
+  const path = route.path === '/' ? '' : route.path
+  const query = route.query.lang ? `?lang=${route.query.lang}` : ''
+  return `${siteUrl}${path}${query}`
+})
+
+const titleText = computed(() => `${t.value.brandName} — ${t.value.tagline}`)
+const descText = computed(() => t.value.heroSub)
+
+// Dynamic head tags
+useHead({
+  title: titleText,
+  htmlAttrs: {
+    lang: computed(() => currentLang.value)
+  },
+  meta: [
+    { name: 'description', content: descText },
+    // Open Graph
+    { property: 'og:title', content: titleText },
+    { property: 'og:description', content: descText },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:url', content: canonicalUrl },
+    { property: 'og:site_name', content: 'Kaduin' },
+    { property: 'og:locale', content: computed(() => {
+      const locales = {
+        id: 'id_ID', en: 'en_US', zh: 'zh_CN', ja: 'ja_JP', ko: 'ko_KR',
+        es: 'es_ES', fr: 'fr_FR', de: 'de_DE', it: 'it_IT', pt: 'pt_PT',
+        ru: 'ru_RU', ar: 'ar_AR', hi: 'hi_IN', tr: 'tr_TR', vi: 'vi_VN',
+        th: 'th_TH', nl: 'nl_NL', pl: 'pl_PL', sv: 'sv_SE', tl: 'tl_PH', ms: 'ms_MY'
+      }
+      return locales[currentLang.value] || 'id_ID'
+    }) },
+    // Twitter Cards
+    { name: 'twitter:title', content: titleText },
+    { name: 'twitter:description', content: descText },
+    { name: 'twitter:url', content: canonicalUrl },
+    // GEO Targeting Meta Tags
+    { name: 'geo.region', content: 'ID-JK' },
+    { name: 'geo.placename', content: 'Jakarta, Indonesia' },
+    { name: 'geo.position', content: '-6.2088;106.8456' },
+    { name: 'ICBM', content: '-6.2088, 106.8456' }
+  ],
+  link: [
+    { rel: 'canonical', href: canonicalUrl },
+    // Alternate language links (hreflangs)
+    { rel: 'alternate', hreflang: 'x-default', href: `${siteUrl}/` },
+    ...['id', 'en', 'zh', 'ja', 'ko', 'es', 'fr', 'de', 'it', 'pt', 'ru', 'ar', 'hi', 'tr', 'vi', 'th', 'nl', 'pl', 'sv', 'tl', 'ms'].map(lang => ({
+      rel: 'alternate',
+      hreflang: lang,
+      href: `${siteUrl}/?lang=${lang}`
+    }))
+  ],
+  script: [
+    {
+      type: 'application/ld+json',
+      children: computed(() => JSON.stringify([
+        {
+          '@context': 'https://schema.org',
+          '@type': 'Organization',
+          'name': 'Kaduin',
+          'url': `${siteUrl}/`,
+          'logo': `${siteUrl}/images/kaduin.png`,
+          'description': descText.value,
+          'sameAs': [
+            'https://github.com/Rbin01yuh/kamidukung-invoice-generator'
+          ]
+        },
+        {
+          '@context': 'https://schema.org',
+          '@type': 'WebSite',
+          'name': 'Kaduin',
+          'alternateName': 'Kaduin Invoice',
+          'url': `${siteUrl}/`
+        },
+        {
+          '@context': 'https://schema.org',
+          '@type': 'SoftwareApplication',
+          'name': 'Kaduin',
+          'applicationCategory': 'BusinessApplication',
+          'operatingSystem': 'All',
+          'url': `${siteUrl}/`,
+          'offers': {
+            '@type': 'Offer',
+            'price': '0',
+            'priceCurrency': 'IDR'
+          }
+        },
+        {
+          '@context': 'https://schema.org',
+          '@type': 'FAQPage',
+          'mainEntity': faqs.value.map(faq => ({
+            '@type': 'Question',
+            'name': faq.q,
+            'acceptedAnswer': {
+              '@type': 'Answer',
+              'text': faq.a
+            }
+          }))
+        }
+      ]))
+    }
+  ]
+})
 </script>
+
 
 <template>
   <div class="relative min-h-screen font-sans antialiased text-[#1E293B] bg-grid-dots">

@@ -4765,3 +4765,52 @@ export function numberToWords(n: number, lang: LanguageCode): string {
       return enWords(num) + " Rupiah";
   }
 }
+
+export function getInitialLanguage(routeQuery?: any, requestHeaders?: any): LanguageCode {
+  const allLangs: LanguageCode[] = ["id", "en", "zh", "ja", "ko", "es", "fr", "de", "it", "pt", "ru", "ar", "hi", "tr", "vi", "th", "nl", "pl", "sv", "tl", "ms"];
+  
+  // 1. Check query parameter (server & client)
+  if (routeQuery && routeQuery.lang && typeof routeQuery.lang === 'string') {
+    const qLang = routeQuery.lang.toLowerCase() as LanguageCode;
+    if (allLangs.includes(qLang)) {
+      return qLang;
+    }
+  }
+
+  // 2. Check localStorage (client-side only)
+  if (typeof window !== "undefined") {
+    try {
+      const saved = localStorage.getItem("app_lang") as LanguageCode;
+      if (saved && allLangs.includes(saved)) {
+        return saved;
+      }
+    } catch (e) {
+      console.warn("localStorage is not available:", e);
+    }
+  }
+
+  // 3. Check accept-language header (server-side only)
+  if (requestHeaders && requestHeaders['accept-language']) {
+    try {
+      const acceptLang = requestHeaders['accept-language'] as string;
+      const parsedLangs = acceptLang
+        .split(',')
+        .map(p => {
+          const parts = p.split(';');
+          const firstPart = parts[0] || '';
+          const subParts = firstPart.trim().toLowerCase().split('-');
+          return (subParts[0] || '') as LanguageCode;
+        });
+      for (const lang of parsedLangs) {
+        if (allLangs.includes(lang)) {
+          return lang;
+        }
+      }
+    } catch (e) {
+      console.warn("Failed to parse accept-language header:", e);
+    }
+  }
+
+  return "id"; // Default to Indonesian
+}
+
